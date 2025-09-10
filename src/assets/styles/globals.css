@@ -1,0 +1,49 @@
+/* Manrope via fontsource */
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+
+/* Smooth fonts + nice scrollbars */
+/* src/assets/styles/globals.css */
+
+/* Tailwind v4 tokens */
+@theme {
+  /* Fonts */
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Colors use space-separated RGB so /opacity works (e.g. bg-brand/10) */
+  --color-brand: 16 94 19;         /* deep military green */
+  --color-surface: 255 255 255;    /* app background (light) */
+  --color-muted: 249 250 251;      /* panels, cards (gray-50) */
+  --color-foreground: 17 24 39;    /* slate-900 for readable text */
+}
+
+/* Base globals */
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  /* You can use theme() now that tokens exist, without .DEFAULT */
+  background-color: theme(colors.surface);
+  color: theme(colors.foreground);
+  font-family: theme(fontFamily.sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional: card-like panel background */
+.app-surface {
+  background-color: rgb(var(--color-muted));
+}
+
+/* Optional: brand helpers */
+.text-brand { color: rgb(var(--color-brand)); }
+.bg-brand   { background-color: rgb(var(--color-brand)); }
