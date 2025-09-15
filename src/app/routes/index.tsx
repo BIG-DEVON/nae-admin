@@ -14,6 +14,9 @@ const Formations  = lazy(() => import('@/features/formations/pages/Formations'))
 const Overview    = lazy(() => import('@/features/overview/pages/Overview'));
 const NotFound    = lazy(() => import('@/pages/NotFound'));
 const GalleryHome = lazy(() => import('@/features/gallery/pages/GalleryHome'));
+const GalleryDetail = lazy(() => import('@/features/gallery/pages/GalleryDetail'));
+// const Awards = lazy(() => import('@/features/awards/pages/Awards'));
+const AwardSections = lazy(() => import('@/features/awards/pages/AwardSections'));
 
 export default function AppRouter() {
   return (
@@ -31,6 +34,10 @@ export default function AppRouter() {
             <Route path="formations" element={<Formations />} />
             <Route path="overview" element={<Overview />} />
             <Route path="gallery/home" element={<GalleryHome />} />
+            <Route path="gallery/detail" element={<GalleryDetail />} />
+            {/* <Route path="awards" element={<Awards />} /> */}
+            <Route path="awards/sections" element={<AwardSections />} />
+
           </Route>
 
           {/* Convenience alias */}

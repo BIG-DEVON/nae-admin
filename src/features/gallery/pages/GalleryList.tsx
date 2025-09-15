@@ -30,12 +30,14 @@ export default function GalleryList() {
             <p className="text-sm text-muted-foreground">Position: {g.position}</p>
 
             <div className="mt-3">
-              <Link
-                to={`/gallery?id=${g.id}`}
-                className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm"
-              >
+
+             <Link to={`/gallery/detail?id=${g.id}`} className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm">
                 Manage contents
-              </Link>
+                
+             </Link>
+
+
+
             </div>
           </div>
         ))}

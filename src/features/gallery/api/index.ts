@@ -28,25 +28,45 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function sendJSON<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body: unknown): Promise<T> {
+async function sendJSON<T>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body: unknown
+): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+
+  const text = await res.text(); // read once
+  if (!res.ok) throw new Error(text || res.statusText);
+
+  // Many endpoints (especially DELETE) return empty bodies
+  if (!text) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {} as T;
+  }
 }
 
 async function sendForm<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { ...getAuthHeader() },
-    body: form,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', body: form });
+
+  const text = await res.text(); // read once
+  if (!res.ok) throw new Error(text || res.statusText);
+
+  if (!text) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {} as T;
+  }
 }
+
+
+
 
 /* ------------------------ READ endpoints ------------------------ */
 
@@ -145,5 +165,8 @@ export const editGalleryContentImage = (payload: { content_id: ID; image: File }
   return sendForm('/gallery-actions/contents/', fd);
 };
 
-export const deleteGalleryContent = (content_id: ID) =>
-  sendJSON<{ success: boolean }>('/gallery-actions/contents/', 'DELETE', { content_id });
+export const deleteGalleryContent = (payload: { content_id: ID }) =>
+  sendJSON<{ success?: boolean }>('/gallery-actions/contents/', 'DELETE', payload);
+
+// export const deleteGalleryContent = (content_id: ID) =>
+//   sendJSON<{ success: boolean }>('/gallery-actions/contents/', 'DELETE', { content_id });

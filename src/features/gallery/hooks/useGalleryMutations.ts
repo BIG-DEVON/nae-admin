@@ -1,80 +1,89 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/api/queryKeys";
-import {
-  createGallery, editGallery, deleteGallery,
-  createGalleryContent, editGalleryContent, editGalleryContentImage, deleteGalleryContent,
-  createHomeGallery, editHomeGallery, editHomeGalleryImage, deleteHomeGallery
-} from "../api";
 import type { ID } from "../types";
+import {
+  createGallery,
+  updateGallery,
+  deleteGallery,
+  createGalleryContent,
+  editGalleryContent,
+  editGalleryContentImage,
+  deleteGalleryContent,     // <— add this
+  createHomeGallery,
+  updateHomeGallery,
+  editHomeGalleryImage,
+  deleteHomeGallery,
+} from "../api";
 
-type CreateGalleryVars = Parameters<typeof createGallery>[0];
-type EditGalleryVars = Parameters<typeof editGallery>[0];
-type DeleteGalleryVars = Parameters<typeof deleteGallery>[0];
-
-type CreateGalleryContentVars = Parameters<typeof createGalleryContent>[0];
-type EditGalleryContentVars = Parameters<typeof editGalleryContent>[0];
-type EditGalleryContentImageVars = Parameters<typeof editGalleryContentImage>[0];
 
 export function useGalleryMutations() {
   const qc = useQueryClient();
 
   return {
     createGallery: useMutation({
-      mutationFn: (vars: CreateGalleryVars) => createGallery(vars),
+      mutationFn: createGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.list() }),
     }),
+
+    // (renamed in api: updateGallery, not editGallery)
     editGallery: useMutation({
-      mutationFn: (vars: EditGalleryVars) => editGallery(vars),
+      mutationFn: updateGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.list() }),
     }),
+
     deleteGallery: useMutation({
-      mutationFn: (vars: DeleteGalleryVars) => deleteGallery(vars),
+      mutationFn: deleteGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.list() }),
     }),
 
     createGalleryContent: useMutation({
-      mutationFn: (vars: CreateGalleryContentVars) => createGalleryContent(vars),
-      onSuccess: (_res, vars) => {
-        const gid = Number(vars.gallery_id as ID);
-        if (!Number.isNaN(gid)) {
-          qc.invalidateQueries({ queryKey: qk.gallery.contents(gid) });
-        } else {
-          qc.invalidateQueries({ queryKey: qk.gallery.all });
-        }
+      mutationFn: createGalleryContent,
+      onSuccess: (_res, vars: { gallery_id: ID; image: File; title: string; position: number }) => {
+        qc.invalidateQueries({ queryKey: qk.gallery.contents(Number(vars.gallery_id)) });
       },
     }),
+
     editGalleryContent: useMutation({
-      mutationFn: (vars: EditGalleryContentVars) => editGalleryContent(vars),
-      onSuccess: (_res, vars) => {
-        const gid = Number(vars.gallery_id as ID);
-        if (!Number.isNaN(gid)) {
-          qc.invalidateQueries({ queryKey: qk.gallery.contents(gid) });
+      mutationFn: editGalleryContent,
+      onSuccess: (_res, vars: { gallery_id?: ID }) => {
+        if (vars.gallery_id != null) {
+          qc.invalidateQueries({ queryKey: qk.gallery.contents(Number(vars.gallery_id)) });
         } else {
           qc.invalidateQueries({ queryKey: qk.gallery.all });
         }
       },
     }),
+
     editGalleryContentImage: useMutation({
-      mutationFn: (vars: EditGalleryContentImageVars) => editGalleryContentImage(vars),
-      onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.all }),
+      mutationFn: editGalleryContentImage,
+      onSuccess: (_res, vars: { content_id: ID }) => {
+        // If you know the parent gallery id, you can invalidate that instead
+        qc.invalidateQueries({ queryKey: qk.gallery.all });
+      },
     }),
+
     deleteGalleryContent: useMutation({
-      mutationFn: (id: ID) => deleteGalleryContent(Number(id)),
+      mutationFn: deleteGalleryContent,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.all }),
     }),
+
 
     createHomeGallery: useMutation({
       mutationFn: createHomeGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.home() }),
     }),
+
+    // (renamed in api: updateHomeGallery, not editHomeGallery)
     editHomeGallery: useMutation({
-      mutationFn: editHomeGallery,
+      mutationFn: updateHomeGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.home() }),
     }),
+
     editHomeGalleryImage: useMutation({
       mutationFn: editHomeGalleryImage,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.home() }),
     }),
+
     deleteHomeGallery: useMutation({
       mutationFn: deleteHomeGallery,
       onSuccess: () => qc.invalidateQueries({ queryKey: qk.gallery.home() }),
