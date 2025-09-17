@@ -4,7 +4,7 @@ import {
   createAward, updateAward, deleteAward,
   createAwardSection, updateAwardSection, deleteAwardSection,
   createAwardContent, updateAwardContent, deleteAwardContent,
-} from '../api';
+} from '../api';  
 import type { ID } from '@/features/gallery/types';
 
 export function useAwardMutations() {

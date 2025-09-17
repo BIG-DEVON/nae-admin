@@ -22,7 +22,7 @@ function normalizeArray<T>(json: any): T[] {
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: { ...getAuthHeader() },
+    headers: {...getAuthHeader() },
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<T>;

@@ -17,6 +17,8 @@ const GalleryHome = lazy(() => import('@/features/gallery/pages/GalleryHome'));
 const GalleryDetail = lazy(() => import('@/features/gallery/pages/GalleryDetail'));
 // const Awards = lazy(() => import('@/features/awards/pages/Awards'));
 const AwardSections = lazy(() => import('@/features/awards/pages/AwardSections'));
+const AwardContents = lazy(() => import('@/features/awards/pages/AwardContents'));
+
 
 export default function AppRouter() {
   return (
@@ -37,6 +39,8 @@ export default function AppRouter() {
             <Route path="gallery/detail" element={<GalleryDetail />} />
             {/* <Route path="awards" element={<Awards />} /> */}
             <Route path="awards/sections" element={<AwardSections />} />
+            <Route path="awards/contents" element={<AwardContents />} />
+
 
           </Route>
 

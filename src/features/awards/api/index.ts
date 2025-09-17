@@ -4,6 +4,11 @@ import type { Award, AwardSection, AwardContent } from '../types';
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
+function getAuthHeader() {
+  const token = (import.meta.env.VITE_API_TOKEN || localStorage.getItem('token') || '').trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Normalize API shapes: [], {data:[]}, {results:[]}, {items:[]}
 function toArray<T = unknown>(input: unknown): T[] {
   if (Array.isArray(input)) return input as T[];
@@ -18,7 +23,10 @@ function toArray<T = unknown>(input: unknown): T[] {
 }
 
 async function getJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+  const res = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
+    headers: { ...getAuthHeader() },
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<T>;
 }
@@ -30,33 +38,24 @@ async function sendJSON<T>(
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    if (text.trim().length === 0) return {} as T; // e.g., DELETE with no body
-    throw new Error(text);
-  }
+
   const text = await res.text();
-  return (text ? (JSON.parse(text) as T) : ({} as T));
+  if (!res.ok) throw new Error(text || res.statusText);
+
+  // DELETE endpoints often return empty string
+  if (!text) return {} as T;
+  try { return JSON.parse(text) as T; } catch { return {} as T; }
 }
 
 /* ------------------- READ (normalized) ------------------- */
-export const getAwards = async () => {
-  const json = await getJSON<unknown>('/awards/');
-  return toArray<Award>(json);
-};
-
-export const getAwardSections = async (award_id: ID) => {
-  const json = await getJSON<unknown>(`/awards/sections/?award_id=${award_id}`);
-  return toArray<AwardSection>(json);
-};
-
-export const getAwardContents = async (section_id: ID) => {
-  const json = await getJSON<unknown>(`/awards/contents/?section_id=${section_id}`);
-  return toArray<AwardContent>(json);
-};
+export const getAwards = async () => toArray<Award>(await getJSON<unknown>('/awards/'));
+export const getAwardSections = async (award_id: ID) =>
+  toArray<AwardSection>(await getJSON<unknown>(`/awards/sections/?award_id=${award_id}`));
+export const getAwardContents = async (section_id: ID) =>
+  toArray<AwardContent>(await getJSON<unknown>(`/awards/contents/?section_id=${section_id}`));
 
 /* ------------------- ADMIN: Awards ------------------- */
 export const createAward = (payload: { title: string; position: number }) =>
@@ -69,9 +68,8 @@ export const deleteAward = (award_id: ID) =>
   sendJSON<{ success?: boolean }>('/awards-actions/', 'DELETE', { award_id });
 
 /* ------------------- ADMIN: Sections ------------------- */
-export const createAwardSection = (payload: {
-  award_id: ID; title: string; position: number;
-}) => sendJSON<AwardSection>('/awards-actions/sections/', 'POST', payload);
+export const createAwardSection = (payload: { award_id: ID; title: string; position: number }) =>
+  sendJSON<AwardSection>('/awards-actions/sections/', 'POST', payload);
 
 export const updateAwardSection = (payload: {
   section_id: ID; award_id: ID; title?: string; position?: number;
@@ -82,15 +80,12 @@ export const deleteAwardSection = (section_id: ID) =>
 
 /* ------------------- ADMIN: Contents ------------------- */
 export const createAwardContent = (payload: {
-  award_section_id: ID;
-  position: number;
+  award_section_id: ID; position: number;
   rank?: string; name?: string; pno?: string; courseno?: string; unit?: string; year?: string;
 }) => sendJSON<AwardContent>('/awards-actions/contents/', 'POST', payload);
 
 export const updateAwardContent = (payload: {
-  content_id: ID;
-  award_section_id: ID;
-  position?: number;
+  content_id: ID; award_section_id: ID; position?: number;
   rank?: string; name?: string; pno?: string; courseno?: string; unit?: string; year?: string;
 }) => sendJSON<AwardContent>('/awards-actions/contents/', 'PATCH', payload);
 
