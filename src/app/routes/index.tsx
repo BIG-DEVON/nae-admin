@@ -18,6 +18,19 @@ const GalleryDetail = lazy(() => import('@/features/gallery/pages/GalleryDetail'
 // const Awards = lazy(() => import('@/features/awards/pages/Awards'));
 const AwardSections = lazy(() => import('@/features/awards/pages/AwardSections'));
 const AwardContents = lazy(() => import('@/features/awards/pages/AwardContents'));
+const FormChronicles = lazy(() => import('@/features/formations/pages/Chronicles'));
+const FormSections   = lazy(() => import('@/features/formations/pages/ChronicleSections'));
+const FormContents   = lazy(() => import('@/features/formations/pages/ChronicleContents'));
+// const FormChronicles = lazy(() => import('@/features/formations/pages/Chronicles'));
+const FormChronicleSections = lazy(() => import('@/features/formations/pages/ChronicleSections'));
+const FormChronicleContents = lazy(() => import('@/features/formations/pages/ChronicleContents'));
+const SapperGenerals = lazy(() => import('@/features/formations/pages/SapperGenerals'));
+const SapperChronicles = lazy(() => import('@/features/formations/pages/SapperChronicles'));
+const SapperChroniclesContents = lazy(() => import('@/features/formations/pages/SapperChroniclesContents'));
+const OverviewHistory = lazy(() => import('@/features/overview/pages/History'));
+const OverviewOrganogram = lazy(() => import('@/features/overview/pages/Organogram'));
+const OverviewCommanders = lazy(() => import('@/features/overview/pages/Commanders'));
+
 
 
 export default function AppRouter() {
@@ -40,6 +53,17 @@ export default function AppRouter() {
             {/* <Route path="awards" element={<Awards />} /> */}
             <Route path="awards/sections" element={<AwardSections />} />
             <Route path="awards/contents" element={<AwardContents />} />
+            <Route path="formations/chronicles" element={<FormChronicles />} />
+            <Route path="formations/sections"    element={<FormSections />} />
+            <Route path="formations/contents"    element={<FormContents />} />
+            <Route path="formations/chronicles/sections" element={<FormChronicleSections />} />
+            <Route path="formations/chronicles/contents" element={<FormChronicleContents />} />
+            <Route path="formations/sapper-generals" element={<SapperGenerals />} />
+            <Route path="formations/sapper-chronicles" element={<SapperChronicles />} />
+            <Route path="formations/sapper-chronicles/contents" element={<SapperChroniclesContents />} />
+            <Route path="overview/history" element={<OverviewHistory />} />
+            <Route path="overview/organogram" element={<OverviewOrganogram />} />
+            <Route path="overview/commanders" element={<OverviewCommanders />} />
 
 
           </Route>
