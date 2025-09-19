@@ -1,9 +1,43 @@
-export const paths = {
+// src/app/routes/paths.ts
+export const ROUTES = {
   root: "/",
   login: "/login",
   dashboard: "/dashboard",
+
+  // Gallery
   gallery: "/gallery",
+  galleryDetail: (galleryId: number | string) => `/gallery/${galleryId}`,
+  galleryContents: (galleryId: number | string) => `/gallery/${galleryId}/contents`,
+
+  // Awards
   awards: "/awards",
+  awardSections: "/awards/sections",       // expects ?award_id=...
+  awardContents: "/awards/contents",       // expects ?section_id=...
+
+  // Formations
   formations: "/formations",
-  overview: "/overview"
+  formationsChronicles: "/formations/chronicles",
+  formationsChronicleSections: "/formations/chronicles/sections",   // ?chronicles_id=...
+  formationsChronicleContents: "/formations/chronicles/contents",   // ?section_id=...
+  formationsSapperGenerals: "/formations/sapper-generals",
+  formationsSapperChronicles: "/formations/sapper-chronicles",
+  formationsSapperChroniclesContents: "/formations/sapper-chronicles/contents", // ?section_id=...
+
+  // Overview
+  overview: "/overview",
+  overviewHistory: "/overview/history",
+  overviewOrganogram: "/overview/organogram",
+  overviewCommanders: "/overview/commanders",
 } as const;
+
+
+
+// export const paths = {
+//   root: "/",
+//   login: "/login",
+//   dashboard: "/dashboard",
+//   gallery: "/gallery",
+//   awards: "/awards",
+//   formations: "/formations",
+//   overview: "/overview"
+// } as const;

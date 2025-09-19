@@ -1,54 +1,175 @@
-import { useEffect, useState } from 'react';
-import { getOrganogram, createOrganogram, updateOrganogramImage, updateOrganogramPosition, deleteOrganogram } from '../api';
+import { useMemo, useState } from "react";
 
-type Row = { id: number|string; position: number; image?: string };
+import { useOverviewOrganogram } from '../hooks/useOverview';
 
-export default function OrganogramPage() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [pos, setPos] = useState<number|''>(''); const [file, setFile] = useState<File|null>(null);
+type Row = { id: number | string; position: number; image_url?: string };
 
-  const load = async () => { setRows(await getOrganogram() as any); };
-  useEffect(()=>{ load(); },[]);
+export default function Organogram() {
+  const { query, create, updateImage, updatePosition, remove } = useOverviewOrganogram();
+  const rows = useMemo<Row[]>(
+    () => (Array.isArray(query.data) ? (query.data as any) : []),
+    [query.data]
+  );
 
-  const create = async () => {
-    if (!file) return alert('Choose image');
-    await createOrganogram({ position:Number(pos||0), image:file }); setPos(''); setFile(null); await load();
+  // create form
+  const [position, setPosition] = useState<number | "">(
+    (rows.at(-1)?.position ?? 0) + 1
+  );
+  const [file, setFile] = useState<File | null>(null);
+
+  const onCreate = async () => {
+    if (!file) return alert("Pick an image");
+    await create.mutateAsync({ position: Number(position || 0), image: file });
+    setFile(null);
+    setPosition((rows.at(-1)?.position ?? 0) + 1);
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-xl font-semibold">Overview – Organogram</h1>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Overview — Organogram</h1>
+        {query.isFetching && (
+          <span className="text-sm text-neutral-500">Refreshing…</span>
+        )}
+      </header>
 
-      <div className="rounded-xl border p-4 grid md:grid-cols-4 gap-3">
-        <input className="border rounded-lg px-3 py-2 text-sm" type="number" placeholder="Position" value={pos} onChange={(e)=>setPos(e.target.value===''?'':Number(e.target.value))}/>
-        <input className="border rounded-lg px-3 py-2 text-sm" type="file" onChange={(e)=>setFile(e.target.files?.[0] ?? null)}/>
-        <button onClick={create} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">Upload</button>
-      </div>
+      {/* Create */}
+      <section className="rounded-xl border p-4 space-y-3">
+        <div className="text-sm font-medium">Add image</div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <input
+            type="number"
+            className="rounded-lg border px-3 py-2 text-sm"
+            placeholder="Position"
+            value={position}
+            onChange={(e) =>
+              setPosition(e.target.value === "" ? "" : Number(e.target.value))
+            }
+          />
+          <input
+            type="file"
+            accept="image/*"
+            className="rounded-lg border px-3 py-2 text-sm"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            onClick={onCreate}
+            disabled={create.isPending}
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-60"
+          >
+            {create.isPending ? "Uploading…" : "Create"}
+          </button>
+        </div>
+      </section>
 
-      <div className="rounded-xl border overflow-x-auto">
+      {/* List */}
+      <section className="rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50/60"><tr className="[&>th]:px-3 [&>th]:py-2 text-left"><th>ID</th><th>Pos</th><th>Image</th><th>Actions</th></tr></thead>
+          <thead className="bg-neutral-50">
+            <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
+              <th>ID</th>
+              <th>Preview</th>
+              <th>Position</th>
+              <th className="text-right">Actions</th>
+            </tr>
+          </thead>
           <tbody>
-            {rows.map((r)=> <RowComp key={String(r.id)} item={r} reload={load} /> )}
+            {query.isLoading && (
+              <tr>
+                <td className="px-3 py-3" colSpan={4}>
+                  Loading…
+                </td>
+              </tr>
+            )}
+            {!query.isLoading &&
+              rows.map((r) => (
+                <Row
+                  key={String(r.id)}
+                  item={r}
+                  onChangeImage={async (f) => {
+                    if (!f) return;
+                    await updateImage.mutateAsync({ organogram_id: r.id, image: f });
+                  }}
+                  onChangePos={async (pos) => {
+                    await updatePosition.mutateAsync({
+                      organogram_id: r.id,
+                      position: Number(pos || 0),
+                    });
+                  }}
+                  onDelete={async () => {
+                    if (!confirm("Delete image?")) return;
+                    await remove.mutateAsync(r.id);
+                  }}
+                />
+              ))}
+            {!query.isLoading && rows.length === 0 && (
+              <tr>
+                <td className="px-3 py-6 text-center text-neutral-500" colSpan={4}>
+                  No images yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   );
 }
 
-function RowComp({ item, reload }:{ item:Row; reload:()=>void }) {
-  const [p, setP] = useState<number|''>(item.position);
+function Row({
+  item,
+  onChangeImage,
+  onChangePos,
+  onDelete,
+}: {
+  item: Row;
+  onChangeImage: (file: File | null) => void;
+  onChangePos: (pos: number | "") => void;
+  onDelete: () => void;
+}) {
+  const [pos, setPos] = useState<number | "">(item.position);
+
   return (
-    <tr className="[&>td]:px-3 [&>td]:py-2 border-t">
-      <td>{String(item.id)}</td>
-      <td><input type="number" className="border rounded-lg px-2 py-1 w-24" value={p} onChange={(e)=>setP(e.target.value===''?'':Number(e.target.value))}/></td>
-      <td className="w-64">
-        <input type="file" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; await updateOrganogramImage({ organogram_id:item.id, image:f }); await reload(); }}/>
+    <tr className="[&>td]:px-3 [&>td]:py-2 border-t align-top">
+      <td className="whitespace-nowrap">{String(item.id)}</td>
+      <td>
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt=""
+            className="h-16 w-auto rounded-md border bg-white"
+          />
+        ) : (
+          <span className="text-neutral-500">No image</span>
+        )}
       </td>
-      <td className="space-x-2">
-        <button onClick={async ()=>{ await updateOrganogramPosition({ organogram_id:item.id, position:Number(p||0) }); await reload(); }} className="rounded-lg border px-2 py-1 hover:bg-zinc-50">Save</button>
-        <button onClick={async ()=>{ if(!confirm('Delete image?')) return; await deleteOrganogram(item.id); await reload(); }} className="rounded-lg border px-2 py-1 hover:bg-red-50 text-red-600">Delete</button>
+      <td className="w-28">
+        <input
+          type="number"
+          className="rounded-lg border px-2 py-1 w-24"
+          value={pos}
+          onChange={(e) =>
+            setPos(e.target.value === "" ? "" : Number(e.target.value))
+          }
+          onBlur={() => onChangePos(pos)}
+        />
+      </td>
+      <td className="text-right space-x-2">
+        <label className="rounded-lg border px-2 py-1 hover:bg-neutral-50 cursor-pointer">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onChangeImage(e.target.files?.[0] ?? null)}
+          />
+          Change image
+        </label>
+        <button
+          onClick={onDelete}
+          className="rounded-lg border px-2 py-1 text-red-600 hover:bg-red-50"
+        >
+          Delete
+        </button>
       </td>
     </tr>
   );

@@ -1,26 +1,12 @@
-import { PropsWithChildren, createContext, useContext, useState } from "react";
+import { PropsWithChildren } from "react";
 
-type User = { id: string; name: string } | null;
-type AuthCtx = {
-  user: User;
-  login: (name: string) => void;
-  logout: () => void;
-};
-
-const Ctx = createContext<AuthCtx | undefined>(undefined);
-
+/**
+ * Minimal auth boundary.
+ * Keep this file exporting ONLY a component to satisfy
+ * react-refresh/only-export-components.
+ *
+ * We’ll expose the hook from src/features/auth/hooks/useAuth.ts
+ */
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<User>(null);
-  const value: AuthCtx = {
-    user,
-    login: (name) => setUser({ id: "demo", name }),
-    logout: () => setUser(null),
-  };
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <>{children}</>;
 }
-
-export const useAuth = () => {
-  const v = useContext(Ctx);
-  if (!v) throw new Error("useAuth must be used within <AuthProvider>");
-  return v;
-};
