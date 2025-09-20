@@ -1,36 +1,39 @@
+// src/features/overview/pages/Organogram.tsx
 import { useMemo, useState } from "react";
-
-import { useOverviewOrganogram } from '../hooks/useOverview';
+import OverviewTabs from "@/features/overview/components/OverviewTabs";
+import { useOverviewOrganogram } from "../hooks/useOverview";
 
 type Row = { id: number | string; position: number; image_url?: string };
 
 export default function Organogram() {
   const { query, create, updateImage, updatePosition, remove } = useOverviewOrganogram();
+
   const rows = useMemo<Row[]>(
-    () => (Array.isArray(query.data) ? (query.data as any) : []),
+    () => (Array.isArray(query.data) ? (query.data as Row[]) : []),
     [query.data]
   );
 
-  // create form
-  const [position, setPosition] = useState<number | "">(
-    (rows.at(-1)?.position ?? 0) + 1
-  );
+  // safer next position without using .at()
+  const lastPos = rows.length ? rows[rows.length - 1].position : 0;
+
+  const [position, setPosition] = useState<number | "">(lastPos + 1);
   const [file, setFile] = useState<File | null>(null);
 
   const onCreate = async () => {
     if (!file) return alert("Pick an image");
     await create.mutateAsync({ position: Number(position || 0), image: file });
     setFile(null);
-    setPosition((rows.at(-1)?.position ?? 0) + 1);
+    const newLast = rows.length ? rows[rows.length - 1].position : 0;
+    setPosition(newLast + 1);
   };
 
   return (
     <div className="space-y-6">
+      <OverviewTabs />
+
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Overview — Organogram</h1>
-        {query.isFetching && (
-          <span className="text-sm text-neutral-500">Refreshing…</span>
-        )}
+        {query.isFetching && <span className="text-sm text-neutral-500">Refreshing…</span>}
       </header>
 
       {/* Create */}
@@ -42,9 +45,7 @@ export default function Organogram() {
             className="rounded-lg border px-3 py-2 text-sm"
             placeholder="Position"
             value={position}
-            onChange={(e) =>
-              setPosition(e.target.value === "" ? "" : Number(e.target.value))
-            }
+            onChange={(e) => setPosition(e.target.value === "" ? "" : Number(e.target.value))}
           />
           <input
             type="file"
@@ -76,11 +77,10 @@ export default function Organogram() {
           <tbody>
             {query.isLoading && (
               <tr>
-                <td className="px-3 py-3" colSpan={4}>
-                  Loading…
-                </td>
+                <td className="px-3 py-3" colSpan={4}>Loading…</td>
               </tr>
             )}
+
             {!query.isLoading &&
               rows.map((r) => (
                 <Row
@@ -102,6 +102,7 @@ export default function Organogram() {
                   }}
                 />
               ))}
+
             {!query.isLoading && rows.length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-neutral-500" colSpan={4}>
@@ -134,11 +135,7 @@ function Row({
       <td className="whitespace-nowrap">{String(item.id)}</td>
       <td>
         {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt=""
-            className="h-16 w-auto rounded-md border bg-white"
-          />
+          <img src={item.image_url} alt="" className="h-16 w-auto rounded-md border bg-white" />
         ) : (
           <span className="text-neutral-500">No image</span>
         )}
@@ -148,9 +145,7 @@ function Row({
           type="number"
           className="rounded-lg border px-2 py-1 w-24"
           value={pos}
-          onChange={(e) =>
-            setPos(e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setPos(e.target.value === "" ? "" : Number(e.target.value))}
           onBlur={() => onChangePos(pos)}
         />
       </td>

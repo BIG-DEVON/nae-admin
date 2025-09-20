@@ -1,12 +1,21 @@
-// at the top: already there
 import { Link } from 'react-router-dom';
+import Spinner from '@/components/ui/Spinner';
 import { useGalleries } from '../hooks/useGalleries';
 
 export default function GalleryList() {
   const { data, isLoading, isError } = useGalleries();
 
-  if (isLoading) return <div className="p-6">Loading galleries…</div>;
-  if (isError)   return <div className="p-6 text-red-600">Failed to load galleries.</div>;
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center gap-2 text-sm text-neutral-600">
+        <Spinner size={18} /> Loading galleries…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return <div className="p-6 text-red-600">Failed to load galleries.</div>;
+  }
 
   const rows = Array.isArray(data) ? data : [];
 
@@ -30,14 +39,12 @@ export default function GalleryList() {
             <p className="text-sm text-muted-foreground">Position: {g.position}</p>
 
             <div className="mt-3">
-
-             <Link to={`/gallery/detail?id=${g.id}`} className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm">
+              <Link
+                to={`/gallery/detail?id=${g.id}`}
+                className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm"
+              >
                 Manage contents
-                
-             </Link>
-
-
-
+              </Link>
             </div>
           </div>
         ))}

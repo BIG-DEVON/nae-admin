@@ -1,19 +1,34 @@
+// src/features/overview/pages/History.tsx
 import { useEffect, useMemo, useState } from "react";
-
-import { useOverviewHistory } from '../hooks/useOverview';
+import OverviewTabs from "@/features/overview/components/OverviewTabs";
+import { useOverviewHistory } from "../hooks/useOverview";
 
 type HistoryDoc = { title?: string; content?: string };
+
+// Safely normalize API shapes: {title,content} OR {data:{title,content}}
+function normalizeHistory(input: unknown): HistoryDoc {
+  if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    const data = obj.data;
+    if (data && typeof data === "object") {
+      const d = data as Record<string, unknown>;
+      return {
+        title: typeof d.title === "string" ? d.title : undefined,
+        content: typeof d.content === "string" ? d.content : undefined,
+      };
+    }
+    return {
+      title: typeof obj.title === "string" ? obj.title : undefined,
+      content: typeof obj.content === "string" ? obj.content : undefined,
+    };
+  }
+  return {};
+}
 
 export default function History() {
   const { query, create, update } = useOverviewHistory();
 
-  // Normalize the GET payload (it may be an object or wrapped)
-  const doc = useMemo<HistoryDoc>(() => {
-    const d: any = query.data;
-    if (!d) return {};
-    if (d.data && typeof d.data === "object") return d.data as HistoryDoc;
-    return d as HistoryDoc;
-  }, [query.data]);
+  const doc = useMemo<HistoryDoc>(() => normalizeHistory(query.data), [query.data]);
 
   const [title, setTitle] = useState(doc.title ?? "");
   const [content, setContent] = useState(doc.content ?? "");
@@ -28,22 +43,28 @@ export default function History() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() && !content.trim()) {
+    const t = title.trim();
+    const c = content.trim();
+    if (!t && !c) {
       alert("Please enter a title or content.");
       return;
     }
     if (hasDoc) {
-      await update.mutateAsync({ title: title.trim(), content: content.trim() });
+      await update.mutateAsync({ title: t, content: c });
     } else {
-      await create.mutateAsync({ title: title.trim(), content: content.trim() });
+      await create.mutateAsync({ title: t, content: c });
     }
   };
 
   return (
     <div className="space-y-6">
+      <OverviewTabs />
+
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Overview — History</h1>
-        {query.isFetching && <span className="text-sm text-neutral-500">Refreshing…</span>}
+        {query.isFetching && (
+          <span className="text-sm text-neutral-500">Refreshing…</span>
+        )}
       </header>
 
       <section className="rounded-xl border p-4">

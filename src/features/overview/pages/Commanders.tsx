@@ -1,4 +1,6 @@
+// src/features/overview/pages/Commanders.tsx
 import { useMemo, useState } from "react";
+import OverviewTabs from "@/features/overview/components/OverviewTabs";
 import { useOverviewCommanders } from "../hooks/useOverview";
 
 type Row = {
@@ -26,6 +28,7 @@ export default function Commanders() {
   const { query, create, update, updateImage, remove } = useOverviewCommanders();
 
   const rows = useMemo<Row[]>(() => toArray<Row>(query.data), [query.data]);
+  const lastPos = rows.length ? rows[rows.length - 1].position : 0;
 
   // create form
   const [f, setF] = useState<{
@@ -36,7 +39,7 @@ export default function Commanders() {
   }>({
     title: "",
     content: "",
-    position: (rows.length ? rows[rows.length - 1].position : 0) + 1,
+    position: lastPos + 1,
     image: null,
   });
 
@@ -51,16 +54,19 @@ export default function Commanders() {
       position: Number(f.position),
       image: f.image,
     });
+    const freshLast = rows.length ? rows[rows.length - 1].position : 0;
     setF({
       title: "",
       content: "",
-      position: (rows.length ? rows[rows.length - 1].position : 0) + 1,
+      position: freshLast + 1,
       image: null,
     });
   };
 
   return (
     <div className="space-y-6">
+      <OverviewTabs />
+
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Overview — Commanders</h1>
         {query.isFetching && (
