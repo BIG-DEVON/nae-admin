@@ -157,10 +157,10 @@ export default function GalleryHome() {
           />
           <button
             type="submit"
-            disabled={create.isLoading}
+            disabled={create.isPending}
             className="col-span-1 inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
           >
-            {create.isLoading ? "Creating…" : "Create"}
+            {create.isPending ? "Creating…" : "Create"}
           </button>
         </form>
       </section>
@@ -300,10 +300,10 @@ export default function GalleryHome() {
             <div className="md:col-span-4">
               <button
                 type="submit"
-                disabled={update.isLoading}
+                disabled={update.isPending}
                 className="inline-flex items-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
               >
-                {update.isLoading ? "Saving…" : "Save changes"}
+                {update.isPending ? "Saving…" : "Save changes"}
               </button>
             </div>
           </form>

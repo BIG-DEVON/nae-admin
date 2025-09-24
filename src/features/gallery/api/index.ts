@@ -1,3 +1,4 @@
+// src/features/gallery/api/index.ts
 import type {
   Gallery,
   HomeGallery,
@@ -9,11 +10,17 @@ import type {
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
-function getAuthHeader() {
-  const token = (import.meta.env.VITE_API_TOKEN || localStorage.getItem('token') || '').trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+// Always return a Headers object (satisfies HeadersInit)
+function authHeaders(withJson = false): Headers {
+  const h = new Headers();
+  if (withJson) h.set('Content-Type', 'application/json');
+  const token =
+    (import.meta.env.VITE_API_TOKEN || localStorage.getItem('token') || '').trim();
+  if (token) h.set('Authorization', `Bearer ${token}`);
+  return h;
 }
 
+// normalize helper for [], {data:[]}, {results:[]}, {items:[]}
 function normalizeArray<T>(json: any): T[] {
   if (Array.isArray(json)) return json as T[];
   return (json?.data as T[]) ?? (json?.results as T[]) ?? (json?.items as T[]) ?? [];
@@ -22,7 +29,7 @@ function normalizeArray<T>(json: any): T[] {
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: {...getAuthHeader() },
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<T>;
@@ -35,14 +42,13 @@ async function sendJSON<T>(
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(true),
     body: JSON.stringify(body),
   });
 
-  const text = await res.text(); // read once
+  const text = await res.text();
   if (!res.ok) throw new Error(text || res.statusText);
 
-  // Many endpoints (especially DELETE) return empty bodies
   if (!text) return {} as T;
   try {
     return JSON.parse(text) as T;
@@ -52,9 +58,14 @@ async function sendJSON<T>(
 }
 
 async function sendForm<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { method: 'POST', body: form });
+  // Important: don't set Content-Type for FormData; the browser will add boundaries.
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: form,
+  });
 
-  const text = await res.text(); // read once
+  const text = await res.text();
   if (!res.ok) throw new Error(text || res.statusText);
 
   if (!text) return {} as T;
@@ -65,9 +76,6 @@ async function sendForm<T>(path: string, form: FormData): Promise<T> {
   }
 }
 
-
-
-
 /* ------------------------ READ endpoints ------------------------ */
 
 export const getGalleries = async () => {
@@ -76,6 +84,7 @@ export const getGalleries = async () => {
 };
 
 export const getHomeGallery = async () => {
+  // keep your existing path name
   const json = await getJSON<any>('/gallery/home-gallery/');
   return normalizeArray<HomeGallery>(json);
 };
@@ -90,8 +99,8 @@ export const getGalleryContents = async (gallery_id: ID) => {
 export const createHomeGallery = (input: CreateHomeGalleryInput) => {
   const fd = new FormData();
   fd.append('type', input.type); // "create"
-  fd.append('name', input.name);
-  fd.append('title', input.title);
+  if (input.name) fd.append('name', input.name);
+  if (input.title) fd.append('title', input.title);
   fd.append('position', String(input.position));
   fd.append('image', input.image);
   return sendForm<HomeGallery>('/gallery-actions/home-gallery/', fd);
@@ -117,7 +126,7 @@ export const editHomeGalleryImage = (input: EditHomeGalleryImageInput) => {
 export const updateHomeGalleryImage = editHomeGalleryImage;
 export const editHomeGallery = updateHomeGallery;
 
-// DELETE json (ensure no hidden BOM before slash)
+// DELETE json
 export const deleteHomeGallery = (id: ID) =>
   sendJSON<{ success: boolean }>('/gallery-actions/home-gallery/', 'DELETE', { id });
 
@@ -165,8 +174,6 @@ export const editGalleryContentImage = (payload: { content_id: ID; image: File }
   return sendForm('/gallery-actions/contents/', fd);
 };
 
-export const deleteGalleryContent = (payload: { content_id: ID }) =>
-  sendJSON<{ success?: boolean }>('/gallery-actions/contents/', 'DELETE', payload);
-
-// export const deleteGalleryContent = (content_id: ID) =>
-//   sendJSON<{ success: boolean }>('/gallery-actions/contents/', 'DELETE', { content_id });
+// Change to accept ID directly (matches your mutations expectations)
+export const deleteGalleryContent = (content_id: ID) =>
+  sendJSON<{ success?: boolean }>('/gallery-actions/contents/', 'DELETE', { content_id });

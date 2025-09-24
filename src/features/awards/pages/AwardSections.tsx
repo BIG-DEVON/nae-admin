@@ -1,7 +1,8 @@
+// src/features/awards/pages/AwardSections.tsx
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAwardSections } from '../hooks/useAwardSections';
-import { useAwardSectionMutations } from '../hooks/useAwardSectionMutations';
+import { useAwardMutations } from '../hooks/useAwardMutations';
 
 // normalize helper (works with [], {data:[]}, {results:[]}, {items:[]})
 function toArray<T = unknown>(input: unknown): T[] {
@@ -39,7 +40,8 @@ export default function AwardSections() {
   const { data, isLoading, isError, refetch } = useAwardSections(awardId);
   const items = toArray<SectionRow>(data);
 
-  const { createSection, updateSection, deleteSection } = useAwardSectionMutations(awardId);
+  // ✅ use the consolidated hook
+  const { createSection, updateSection, deleteSection } = useAwardMutations();
 
   const [title, setTitle] = useState('');
   const [position, setPosition] = useState<number | ''>('');
@@ -80,8 +82,12 @@ export default function AwardSections() {
             value={position}
             onChange={(e) => setPosition(e.target.value === '' ? '' : Number(e.target.value))}
           />
-          <button onClick={onCreate} className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50">
-            Create
+          <button
+            onClick={onCreate}
+            disabled={createSection.isPending}
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50 disabled:opacity-60"
+          >
+            {createSection.isPending ? 'Creating…' : 'Create'}
           </button>
         </div>
       </div>

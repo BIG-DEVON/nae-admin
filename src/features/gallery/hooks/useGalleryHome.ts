@@ -13,6 +13,7 @@ import type {
   ID,
   HomeGallery,
 } from '../types';
+import { logActivity } from '@/lib/activity/log';
 
 // Stable query key for the home gallery list
 const QK = ['gallery', 'home'] as const;
@@ -30,25 +31,53 @@ export function useGalleryHome() {
   // ---- CREATE ----
   const create = useMutation({
     mutationFn: (input: CreateHomeGalleryInput) => createHomeGallery(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: QK });
+      logActivity({
+        area: 'Gallery',
+        action: 'create',
+        message: `Banner “${v.title || v.name}” created`,
+      });
+    },
   });
 
   // ---- UPDATE (text fields/position) ----
   const update = useMutation({
     mutationFn: (input: UpdateHomeGalleryInput) => updateHomeGallery(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: QK });
+      logActivity({
+        area: 'Gallery',
+        action: 'update',
+        message: `Banner #${v.id} updated`,
+      });
+    },
   });
 
   // ---- UPDATE IMAGE ----
   const updateImage = useMutation({
     mutationFn: (input: EditHomeGalleryImageInput) => editHomeGalleryImage(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: QK });
+      logActivity({
+        area: 'Gallery',
+        action: 'upload',
+        message: `Banner #${v.id} image changed`,
+      });
+    },
   });
 
   // ---- DELETE ----
   const remove = useMutation({
     mutationFn: (id: ID) => deleteHomeGallery(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+    onSuccess: (_r, id) => {
+      qc.invalidateQueries({ queryKey: QK });
+      logActivity({
+        area: 'Gallery',
+        action: 'delete',
+        message: `Banner #${id} deleted`,
+      });
+    },
   });
 
   return { list, create, update, updateImage, remove };
