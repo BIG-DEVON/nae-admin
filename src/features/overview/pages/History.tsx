@@ -57,14 +57,13 @@ export default function History() {
   };
 
   return (
-    <div className="space-y-6">
-      <OverviewTabs />
-
-      <header className="flex items-center justify-between">
+    <div className="p-6 space-y-6">
+      <header className="mb-4">
         <h1 className="text-xl font-semibold">Overview — History</h1>
-        {query.isFetching && (
-          <span className="text-sm text-neutral-500">Refreshing…</span>
-        )}
+        <div className="mt-2">
+          {/* Match Formations header pattern */}
+          <OverviewTabs active="history" />
+        </div>
       </header>
 
       <section className="rounded-xl border p-4">
@@ -72,7 +71,7 @@ export default function History() {
           <label className="grid gap-1">
             <span className="text-sm font-medium">Title</span>
             <input
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 text-sm"
               placeholder="History title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -82,7 +81,7 @@ export default function History() {
           <label className="grid gap-1">
             <span className="text-sm font-medium">Content</span>
             <textarea
-              className="min-h-[220px] rounded-lg border px-3 py-2"
+              className="min-h-[220px] rounded-lg border px-3 py-2 text-sm"
               placeholder="Write the history content…"
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -90,6 +89,9 @@ export default function History() {
           </label>
 
           <div className="flex items-center gap-2 pt-1">
+            {query.isFetching && (
+              <span className="text-sm text-neutral-500">Refreshing…</span>
+            )}
             <button
               type="submit"
               disabled={create.isPending || update.isPending}

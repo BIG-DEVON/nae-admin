@@ -1,6 +1,8 @@
+// src/features/formations/pages/Chronicles.tsx
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useChronicles, useChroniclesMutations } from '../hooks/useChronicles';
+import FormationsTabs from "../components/FormationsTabs";
 
 type Row = { id: number|string; title: string; position: number };
 
@@ -30,10 +32,12 @@ export default function Chronicles() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <header className="mb-2">
         <h1 className="text-xl font-semibold">Formations – Chronicles</h1>
-        <Link to="/formations/sapper-generals" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-zinc-50">Sapper Generals →</Link>
-      </div>
+        <div className="mt-2">
+          <FormationsTabs active="chronicles" />
+        </div>
+      </header>
 
       {/* Create */}
       <div className="rounded-xl border p-4 space-y-3">

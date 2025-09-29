@@ -1,6 +1,8 @@
+// src/features/formations/pages/SapperChroniclesContents.tsx
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSapperChroniclesContents, useSapperChroniclesContentMutations } from '../hooks/useSapper';
 import { useMemo, useState } from 'react';
+import FormationsTabs from '../components/FormationsTabs';
 
 type Row = {
   id: number|string; position: number; chronicles_id?: number|string;
@@ -28,18 +30,29 @@ export default function SapperChroniclesContents() {
 
   const onCreate = async () => {
     // NOTE: admin create expects chronicles_id; we pass the same ID we used as section_id
-    await create.mutateAsync({ chronicles_id: Number(sectionId), position:Number(c.position ?? 0),
-      pno:c.pno||'', rank:c.rank||'', name:c.name||'', doc:c.doc||'', noneffdate:c.noneffdate||'',
-      cadetcse:c.cadetcse||'', commtype:c.commtype||'', status:c.status||'', remark:c.remark||'', duration:c.duration||'' });
+    await create.mutateAsync({
+      chronicles_id: Number(sectionId),
+      position: Number(c.position ?? 0),
+      pno: c.pno || '',
+      rank: c.rank || '',
+      name: c.name || '',
+      doc: c.doc || '',
+      noneffdate: c.noneffdate || '',
+      cadetcse: c.cadetcse || '',
+      commtype: c.commtype || '',
+      status: c.status || '',
+      remark: c.remark || '',
+      duration: c.duration || '',
+    });
     setC({ position:(rows.at(-1)?.position ?? 0) + 1 }); refetch();
   };
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Sapper Chronicles – Contents</h1>
-        <Link to="/formations/sapper-chronicles" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-zinc-50">← Back</Link>
-      </div>
+      <header className="mb-4">
+        <h1 className="text-xl font-semibold">Formations – Sapper Chronicles • Contents</h1>
+        <div className="mt-2"><FormationsTabs active="sapper" /></div>
+      </header>
 
       {/* Create */}
       <div className="rounded-xl border p-4 space-y-3">
@@ -63,7 +76,9 @@ export default function SapperChroniclesContents() {
       <div className="rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-zinc-50/60">
-            <tr className="[&>th]:px-3 [&>th]:py-2 text-left"><th>Pos</th><th>PNO</th><th>Rank</th><th>Name</th><th>DOC</th><th>Status</th><th>Remark</th><th>Duration</th><th className="text-right">Actions</th></tr>
+            <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
+              <th>Pos</th><th>PNO</th><th>Rank</th><th>Name</th><th>DOC</th><th>Status</th><th>Remark</th><th>Duration</th><th className="text-right">Actions</th>
+            </tr>
           </thead>
           <tbody>
             {isLoading && <tr><td className="px-3 py-3" colSpan={9}>Loading…</td></tr>}
@@ -82,9 +97,21 @@ function Row({ item, sectionId, refetch }:{ item: Row; sectionId: string; refetc
   const [f, setF] = useState<Partial<Row>>(item);
 
   const save = async () => {
-    await update.mutateAsync({ content_id:item.id, chronicles_id:Number(sectionId), position:Number(f.position ?? 0),
-      pno:f.pno||'', rank:f.rank||'', name:f.name||'', doc:f.doc||'', noneffdate:f.noneffdate||'',
-      cadetcse:f.cadetcse||'', commtype:f.commtype||'', status:f.status||'', remark:f.remark||'', duration:f.duration||'' });
+    await update.mutateAsync({
+      content_id: item.id,
+      chronicles_id: Number(sectionId),
+      position: Number(f.position ?? 0),
+      pno: f.pno || '',
+      rank: f.rank || '',
+      name: f.name || '',
+      doc: f.doc || '',
+      noneffdate: f.noneffdate || '',
+      cadetcse: f.cadetcse || '',
+      commtype: f.commtype || '',
+      status: f.status || '',
+      remark: f.remark || '',
+      duration: f.duration || '',
+    });
     setEdit(false); refetch();
   };
 

@@ -28,12 +28,12 @@ export default function Organogram() {
   };
 
   return (
-    <div className="space-y-6">
-      <OverviewTabs />
-
-      <header className="flex items-center justify-between">
+    <div className="p-6 space-y-6">
+      <header className="mb-4">
         <h1 className="text-xl font-semibold">Overview — Organogram</h1>
-        {query.isFetching && <span className="text-sm text-neutral-500">Refreshing…</span>}
+        <div className="mt-2">
+          <OverviewTabs active="organogram" />
+        </div>
       </header>
 
       {/* Create */}
@@ -66,7 +66,7 @@ export default function Organogram() {
       {/* List */}
       <section className="rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50">
+          <thead className="bg-zinc-50/60">
             <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
               <th>ID</th>
               <th>Preview</th>
