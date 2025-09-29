@@ -1,9 +1,10 @@
 // src/app/routes/index.tsx
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import RequireAuth from '@/app/routes/RequireAuth';
 import { Shell as AppLayout } from '@/components/layout/Shell';
+import { useAuthStore } from '@/lib/store/auth.store';
 
 // Lazy pages
 const Login       = lazy(() => import('@/features/auth/pages/Login'));
@@ -30,13 +31,25 @@ const OverviewCommanders = lazy(() => import('@/features/overview/pages/Commande
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
+/** If the user is already authed, keep them out of /login and bounce back */
+function RedirectIfAuthed() {
+  const { user } = useAuthStore();
+  const loc = useLocation() as { state?: { from?: { pathname?: string } } } | null;
+
+  if (user) {
+    const to = loc?.state?.from?.pathname || '/';
+    return <Navigate to={to} replace />;
+  }
+  return <Login />;
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="p-6">Loading…</div>}>
         <Routes>
-          {/* Public */}
-          <Route path="/login" element={<Login />} />
+          {/* Public (but redirect if already signed in) */}
+          <Route path="/login" element={<RedirectIfAuthed />} />
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
@@ -82,3 +95,4 @@ export default function AppRouter() {
     </BrowserRouter>
   );
 }
+
