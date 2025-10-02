@@ -61,8 +61,8 @@ export default function History() {
       <header className="mb-4">
         <h1 className="text-xl font-semibold">Overview — History</h1>
         <div className="mt-2">
-          {/* Match Formations header pattern */}
-          <OverviewTabs active="history" />
+          {/* Tabs auto-detect the active route */}
+          <OverviewTabs />
         </div>
       </header>
 

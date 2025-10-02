@@ -68,7 +68,8 @@ export default function Commanders() {
       <header className="mb-4">
         <h1 className="text-xl font-semibold">Overview — Commanders</h1>
         <div className="mt-2">
-          <OverviewTabs active="commanders" />
+          {/* Tabs auto-detect the active route */}
+          <OverviewTabs />
         </div>
       </header>
 
@@ -121,7 +122,7 @@ export default function Commanders() {
       {/* List */}
       <section className="rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50/60">
+          <thead className="bg-neutral-50">
             <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
               <th>ID</th>
               <th>Preview</th>

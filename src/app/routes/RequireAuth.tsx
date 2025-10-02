@@ -60,7 +60,8 @@ export function RedirectIfAuthed() {
   }
 
   if (user) {
-    return <Navigate to={ROUTES.home} replace state={{ from: location }} />;
+    // FIX: ROUTES.home doesn't exist; use ROUTES.root
+    return <Navigate to={ROUTES.root} replace state={{ from: location }} />;
   }
 
   return <Outlet />;
