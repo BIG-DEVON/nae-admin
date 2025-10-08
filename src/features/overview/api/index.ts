@@ -24,7 +24,7 @@ function toArray<T = unknown>(x: unknown): T[] {
 
 async function getJSON<T>(p: string): Promise<T> {
   const r = await fetch(`${BASE}${p}`, {
-    headers: auth(), // keep typed object, not a union spread
+    headers: auth(),
     credentials: 'include',
   });
   if (!r.ok) throw new Error(await r.text());
@@ -46,7 +46,7 @@ async function sendJSON<T>(p: string, m: 'POST' | 'PATCH' | 'DELETE', b: unknown
 async function sendForm<T>(p: string, fd: FormData): Promise<T> {
   const r = await fetch(`${BASE}${p}`, {
     method: 'POST',
-    headers: auth(), // DO NOT set Content-Type for FormData
+    headers: auth(), // do not set Content-Type for FormData
     body: fd,
   });
   const t = await r.text();
@@ -66,7 +66,9 @@ export const getOverviewChroniclesContents = async (section_id: ID) =>
 /* -------------------- Admin: History (single doc) -------------------- */
 export const createHistory = (payload: { title: string; content: string }) =>
   sendJSON('/overview-actions/history/', 'POST', payload);
-export const updateHistory = (payload: { title: string; content: string }) =>
+
+// 🔧 FIX: PATCH must include history_id now
+export const updateHistory = (payload: { history_id: ID; title?: string; content?: string }) =>
   sendJSON('/overview-actions/history/', 'PATCH', payload);
 
 /* -------------------- Admin: Organogram (image list) -------------------- */

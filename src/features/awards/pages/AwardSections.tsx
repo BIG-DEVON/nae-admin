@@ -21,7 +21,9 @@ type SectionRow = { id: number | string; award_id: number | string; title: strin
 
 export default function AwardSections() {
   const [params] = useSearchParams();
-  const awardParam = params.get('award_id');
+
+  // ✅ Accept both award_id and awardId (legacy) but normalize to a single number
+  const awardParam = params.get('award_id') ?? params.get('awardId');
   const awardId = awardParam ? Number(awardParam) : NaN;
 
   if (!awardParam || Number.isNaN(awardId)) {
@@ -228,8 +230,9 @@ function Row({
             >
               Edit
             </button>
+            {/* ✅ Use award_id consistently so the contents page can build a correct back link */}
             <Link
-              to={`/awards/contents?section_id=${item.id}&awardId=${awardId}`}
+              to={`/awards/contents?section_id=${item.id}&award_id=${awardId}`}
               className="rounded-lg border px-2 py-1 hover:bg-zinc-50"
             >
               Contents

@@ -1,3 +1,4 @@
+// src/features/awards/pages/AwardContent.tsx
 import { useSearchParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { useAwardContents } from '../hooks/useAwardContent';
@@ -18,12 +19,18 @@ type Row = {
 
 export default function AwardContents() {
   const [sp] = useSearchParams();
+
   const sectionId = sp.get('section_id');
-  const awardId = sp.get('awardId') || ''; // optional, for nicer back link
+  // ✅ Accept both award_id and awardId (for legacy links), but normalize to award_id going forward
+  const awardId = sp.get('award_id') ?? sp.get('awardId') ?? '';
+
   const { data, isLoading, isError, refetch } = useAwardContents(sectionId);
   const { createContent, updateContent, deleteContent } = useAwardMutations();
 
-  const rows = useMemo<Row[]>(() => Array.isArray(data) ? (data as any) : [], [data]);
+  const rows = useMemo<Row[]>(
+    () => (Array.isArray(data) ? (data as any) : []),
+    [data]
+  );
 
   // Create form
   const [createOpen, setCreateOpen] = useState(false);
@@ -43,7 +50,9 @@ export default function AwardContents() {
   if (!sectionId) {
     return (
       <div className="p-6">
-        <div className="mb-2 text-red-600">Missing required query param: <code>section_id</code></div>
+        <div className="mb-2 text-red-600">
+          Missing required query param: <code>section_id</code>
+        </div>
         <Link to="/awards" className="text-sm underline">Go to Awards</Link>
       </div>
     );
@@ -97,8 +106,9 @@ export default function AwardContents() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Section Contents</h1>
         <div className="flex items-center gap-2">
+          {/* ✅ Always navigate using award_id to satisfy the Sections page */}
           <Link
-            to={awardId ? `/awards/sections?awardId=${awardId}` : '/awards/sections'}
+            to={awardId ? `/awards/sections?award_id=${awardId}` : '/awards/sections'}
             className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
           >
             ← Back to Sections
@@ -135,7 +145,6 @@ export default function AwardContents() {
             )}
             {rows.map((r) => (
               <tr key={String(r.id)} className="border-t">
-                {/* Position */}
                 <td className="px-3 py-2 w-24">
                   {editingId === r.id ? (
                     <input
@@ -148,7 +157,6 @@ export default function AwardContents() {
                     r.position ?? '—'
                   )}
                 </td>
-                {/* Rank */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -158,7 +166,6 @@ export default function AwardContents() {
                     />
                   ) : (r.rank || '—')}
                 </td>
-                {/* Name */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -168,7 +175,6 @@ export default function AwardContents() {
                     />
                   ) : (r.name || '—')}
                 </td>
-                {/* PNO */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -178,7 +184,6 @@ export default function AwardContents() {
                     />
                   ) : (r.pno || '—')}
                 </td>
-                {/* Course No */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -188,7 +193,6 @@ export default function AwardContents() {
                     />
                   ) : (r.courseno || '—')}
                 </td>
-                {/* Unit */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -198,7 +202,6 @@ export default function AwardContents() {
                     />
                   ) : (r.unit || '—')}
                 </td>
-                {/* Year */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
@@ -208,8 +211,6 @@ export default function AwardContents() {
                     />
                   ) : (r.year || '—')}
                 </td>
-
-                {/* Actions */}
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2 justify-end">
                     {editingId === r.id ? (
@@ -251,7 +252,6 @@ export default function AwardContents() {
         </table>
       </div>
 
-      {/* Create drawer/modal */}
       {createOpen && (
         <dialog open className="rounded-2xl p-0 w-[min(96vw,720px)]">
           <form method="dialog" onSubmit={(e) => { e.preventDefault(); onCreate(); }}>
@@ -268,6 +268,7 @@ export default function AwardContents() {
               </div>
 
               <div className="grid md:grid-cols-3 gap-3">
+                {/* fields... unchanged */}
                 <label className="grid gap-1 text-sm">
                   <span>Position</span>
                   <input
@@ -348,7 +349,7 @@ export default function AwardContents() {
       <ConfirmDialog
         open={confirmId !== null}
         onClose={() => setConfirmId(null)}
-        onConfirm={() => confirmId != null ? onDelete(confirmId) : undefined}
+        onConfirm={() => (confirmId != null ? onDelete(confirmId) : undefined)}
         title="Delete content?"
         message="This will permanently remove the item."
         confirmText="Delete"

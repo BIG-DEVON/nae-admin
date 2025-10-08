@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useAwards } from "../hooks/useAwards";
 import { useAwardMutations } from "../hooks/useAwardMutations";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 // normalize API shapes: [], {data:[]}, {results:[]}, {items:[]}
 function toArray<T = unknown>(input: unknown): T[] {
@@ -29,11 +30,21 @@ export default function Awards() {
   const [position, setPosition] = useState<number | "">("");
 
   const onCreate = async () => {
-    if (!title.trim()) return alert("Title required");
-    await createAward.mutateAsync({ title: title.trim(), position: Number(position || 0) });
-    setTitle("");
-    setPosition("");
-    refetch();
+    const t = title.trim();
+    const p = Number(position || 0);
+    if (!t) {
+      notifyError("Title is required.");
+      return;
+    }
+    try {
+      await createAward.mutateAsync({ title: t, position: p });
+      notifySuccess("Award created successfully.");
+      setTitle("");
+      setPosition("");
+      refetch();
+    } catch (e) {
+      notifyError(extractErrorMessage(e, "Failed to create award."));
+    }
   };
 
   return (
@@ -59,7 +70,9 @@ export default function Awards() {
             placeholder="Position"
             type="number"
             value={position}
-            onChange={(e) => setPosition(e.target.value === "" ? "" : Number(e.target.value))}
+            onChange={(e) =>
+              setPosition(e.target.value === "" ? "" : Number(e.target.value))
+            }
           />
           <button
             onClick={onCreate}
@@ -97,22 +110,34 @@ export default function Awards() {
                 </td>
               </tr>
             )}
+
             {!isLoading &&
               items.map((a) => (
                 <Row
                   key={String(a.id)}
                   item={a}
                   onSave={async (p) => {
-                    await updateAward.mutateAsync({ award_id: a.id, ...p });
-                    refetch();
+                    try {
+                      await updateAward.mutateAsync({ award_id: a.id, ...p });
+                      notifySuccess("Award updated.");
+                      refetch();
+                    } catch (e) {
+                      notifyError(extractErrorMessage(e, "Failed to update award."));
+                    }
                   }}
                   onDelete={async () => {
                     if (!confirm("Delete award?")) return;
-                    await deleteAward.mutateAsync(a.id);
-                    refetch();
+                    try {
+                      await deleteAward.mutateAsync(a.id);
+                      notifySuccess("Award deleted.");
+                      refetch();
+                    } catch (e) {
+                      notifyError(extractErrorMessage(e, "Failed to delete award."));
+                    }
                   }}
                 />
               ))}
+
             {!isLoading && !isError && items.length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-neutral-500" colSpan={4}>
@@ -156,7 +181,9 @@ function Row({
           className="rounded-lg border px-2 py-1 text-sm w-24"
           type="number"
           value={position}
-          onChange={(e) => setPosition(e.target.value === "" ? "" : Number(e.target.value))}
+          onChange={(e) =>
+            setPosition(e.target.value === "" ? "" : Number(e.target.value))
+          }
         />
       </td>
 
