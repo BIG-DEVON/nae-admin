@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useGalleries } from "../hooks/useGalleries";
 import { useGalleryMutations } from "../hooks/useGalleryMutations";
 import type { ID } from "../types";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 type Row = { id: number | string; title: string; position: number };
 
@@ -21,7 +22,7 @@ function toArray<T = unknown>(input: unknown): T[] {
 }
 
 export default function GalleryList() {
-  const { data, isLoading, isError } = useGalleries();
+  const { data, isLoading, isError, isFetching, refetch } = useGalleries();
   const { createGallery, editGallery, deleteGallery } = useGalleryMutations();
 
   const rows = toArray<Row>(data);
@@ -31,22 +32,41 @@ export default function GalleryList() {
   const [position, setPosition] = useState<number | "">("");
 
   const onCreate = async () => {
-    if (!title) return alert("Title required");
-    await createGallery.mutateAsync({ title, position: Number(position || 0) });
-    setTitle("");
-    setPosition("");
+    const t = title.trim();
+    const p = Number(position || 0);
+    if (!t) {
+      notifyError("Title is required");
+      return;
+    }
+    try {
+      await createGallery.mutateAsync({ title: t, position: p });
+      notifySuccess("Gallery created");
+      setTitle("");
+      setPosition("");
+      refetch?.();
+    } catch (err) {
+      notifyError("Failed to create gallery", extractErrorMessage(err));
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Galleries</h1>
-        <Link
-          to="/gallery/home"
-          className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm"
-        >
-          Manage Home Gallery
-        </Link>
+        <div className="flex items-center gap-2">
+          {isFetching && (
+            <span className="text-xs rounded-full px-2 py-1 border text-neutral-600">
+              Refreshing…
+            </span>
+          )}
+          <Link
+            to="/gallery/home"
+            className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
+            Manage Home Gallery
+          </Link>
+        </div>
       </div>
 
       {/* Create */}
@@ -71,7 +91,7 @@ export default function GalleryList() {
           <button
             onClick={onCreate}
             disabled={createGallery.isPending}
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-60"
           >
             {createGallery.isPending ? "Creating…" : "Create"}
           </button>
@@ -86,7 +106,7 @@ export default function GalleryList() {
               <th>ID</th>
               <th>Title</th>
               <th>Position</th>
-              <th>Actions</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -104,19 +124,39 @@ export default function GalleryList() {
                 </td>
               </tr>
             )}
-            {rows.map((g) => (
-              <Row
-                key={String(g.id)}
-                item={g}
-                onSave={async (patch) => {
-                  await editGallery.mutateAsync({ gallery_id: g.id, ...patch });
-                }}
-                onDelete={async () => {
-                  if (!confirm("Delete gallery?")) return;
-                  await deleteGallery.mutateAsync(g.id as ID); // <-- pass raw ID
-                }}
-              />
-            ))}
+            {!isLoading &&
+              rows.map((g) => (
+                <Row
+                  key={String(g.id)}
+                  item={g}
+                  onSave={async (patch) => {
+                    try {
+                      await editGallery.mutateAsync({ gallery_id: g.id, ...patch });
+                      notifySuccess("Gallery updated");
+                      refetch?.();
+                    } catch (err) {
+                      notifyError("Failed to update gallery", extractErrorMessage(err));
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!confirm("Delete gallery?")) return;
+                    try {
+                      await deleteGallery.mutateAsync(g.id as ID);
+                      notifySuccess("Gallery deleted");
+                      refetch?.();
+                    } catch (err) {
+                      notifyError("Failed to delete gallery", extractErrorMessage(err));
+                    }
+                  }}
+                />
+              ))}
+            {!isLoading && !isError && rows.length === 0 && (
+              <tr>
+                <td className="px-3 py-6 text-center text-neutral-500" colSpan={4}>
+                  No galleries yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>
@@ -139,6 +179,7 @@ function Row({
   return (
     <tr className="[&>td]:px-3 [&>td]:py-2 border-t">
       <td className="whitespace-nowrap">{String(item.id)}</td>
+
       <td>
         <input
           className="rounded-lg border px-2 py-1 text-sm w-64"
@@ -146,6 +187,7 @@ function Row({
           onChange={(e) => setTitle(e.target.value)}
         />
       </td>
+
       <td>
         <input
           className="rounded-lg border px-2 py-1 text-sm w-24"
@@ -156,16 +198,19 @@ function Row({
           }
         />
       </td>
-      <td className="space-x-2">
+
+      <td className="space-x-2 text-right">
         <button
-          onClick={() => onSave({ title, position: Number(position || 0) })}
-          className="rounded-lg border px-2 py-1 hover:bg-zinc-50"
+          onClick={() =>
+            onSave({ title: title.trim(), position: Number(position || 0) })
+          }
+          className="rounded-lg border px-2 py-1 hover:bg-neutral-50"
         >
           Save
         </button>
         <Link
           to={`/gallery/detail?id=${item.id}`}
-          className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm"
+          className="inline-flex items-center rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
         >
           Manage contents
         </Link>

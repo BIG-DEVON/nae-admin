@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGalleryHome } from "../hooks/useGalleryHome";
 import type { HomeGallery } from "../types";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 type CreateState = {
   name: string;
@@ -55,56 +56,69 @@ export default function GalleryHome() {
     });
   }, [e.id, items]);
 
-  const onCreate = (ev: React.FormEvent) => {
+  const onCreate = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!c.image || c.position === "") {
-      alert("Select an image and position");
+    const name = c.name.trim();
+    const title = c.title.trim();
+    const position = c.position === "" ? "" : Number(c.position);
+
+    if (c.image == null || c.position === "") {
+      notifyError("Select an image and position");
       return;
     }
 
-    create.mutate(
-      {
+    try {
+      await create.mutateAsync({
         type: "create",
-        name: c.name.trim(),
-        title: c.title.trim(),
-        position: Number(c.position),
+        name,
+        title,
+        position: Number(position),
         image: c.image,
-      },
-      {
-        onSuccess: () => {
-          setC({ name: "", title: "", position: "", image: null });
-        },
-        onError: (err) => alert(normalizeError(err)),
-      }
-    );
+      });
+      notifySuccess("Banner created");
+      setC({ name: "", title: "", position: "", image: null });
+    } catch (err) {
+      notifyError("Failed to create banner", extractErrorMessage(err));
+    }
   };
 
-  const onUpdate = (ev: React.FormEvent) => {
+  const onUpdate = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (e.id == null) return;
 
-    update.mutate(
-      {
+    try {
+      await update.mutateAsync({
         id: e.id,
         name: e.name.trim() || undefined,
         title: e.title.trim() || undefined,
         position: e.position === "" ? undefined : Number(e.position),
-      },
-      { onError: (err) => alert(normalizeError(err)) }
-    );
+      });
+      notifySuccess("Banner updated");
+    } catch (err) {
+      notifyError("Failed to update banner", extractErrorMessage(err));
+    }
   };
 
-  const onUpdateImage = (file: File | null) => {
-    if (!file || e.id == null) return;
-    updateImage.mutate(
-      { type: "edit-image", id: e.id, image: file },
-      { onError: (err) => alert(normalizeError(err)) }
-    );
+  // 🔧 FIX: pass id explicitly from the row, don't rely on edit panel state
+  const onUpdateImage = async (id: HomeGallery["id"], file: File | null) => {
+    if (!file) return;
+    try {
+      await updateImage.mutateAsync({ type: "edit-image", id, image: file });
+      notifySuccess("Image updated");
+    } catch (err) {
+      notifyError("Failed to update image", extractErrorMessage(err));
+    }
   };
 
-  const onDelete = (id: HomeGallery["id"]) => {
+  const onDelete = async (id: HomeGallery["id"]) => {
     if (!confirm("Delete this banner?")) return;
-    remove.mutate(id, { onError: (err) => alert(normalizeError(err)) });
+    try {
+      await remove.mutateAsync(id);
+      notifySuccess("Banner deleted");
+      // If you need to: list.refetch?.();
+    } catch (err) {
+      notifyError("Failed to delete banner", extractErrorMessage(err));
+    }
   };
 
   return (
@@ -112,7 +126,7 @@ export default function GalleryHome() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Home Gallery (Banners)</h1>
         {list.isFetching && (
-          <span className="text-sm text-muted-foreground">Refreshing…</span>
+          <span className="text-sm text-neutral-500">Refreshing…</span>
         )}
       </header>
 
@@ -124,31 +138,31 @@ export default function GalleryHome() {
           onSubmit={onCreate}
         >
           <input
-            className="col-span-1 md:col-span-1 rounded-lg border px-3 py-2"
+            className="col-span-1 md:col-span-1 rounded-lg border px-3 py-2 text-sm"
             placeholder="Name"
             value={c.name}
             onChange={(e) => setC((s) => ({ ...s, name: e.target.value }))}
           />
           <input
-            className="col-span-1 md:col-span-2 rounded-lg border px-3 py-2"
+            className="col-span-1 md:col-span-2 rounded-lg border px-3 py-2 text-sm"
             placeholder="Title"
             value={c.title}
             onChange={(e) => setC((s) => ({ ...s, title: e.target.value }))}
           />
           <input
-            className="col-span-1 rounded-lg border px-3 py-2"
+            className="col-span-1 rounded-lg border px-3 py-2 text-sm"
             placeholder="Position"
             type="number"
             value={c.position}
             onChange={(e) =>
               setC((s) => ({
                 ...s,
-                position: e.target.valueAsNumber || "",
+                position: e.target.value === "" ? "" : Number(e.target.value),
               }))
             }
           />
           <input
-            className="col-span-1 rounded-lg border px-3 py-2"
+            className="col-span-1 rounded-lg border px-3 py-2 text-sm"
             type="file"
             accept="image/*"
             onChange={(e) =>
@@ -158,7 +172,7 @@ export default function GalleryHome() {
           <button
             type="submit"
             disabled={create.isPending}
-            className="col-span-1 inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
+            className="col-span-1 inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60 hover:bg-neutral-50"
           >
             {create.isPending ? "Creating…" : "Create"}
           </button>
@@ -169,7 +183,7 @@ export default function GalleryHome() {
       <section className="rounded-xl border">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-zinc-50">
+            <thead className="bg-zinc-50/60">
               <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
                 <th>ID</th>
                 <th>Preview</th>
@@ -190,11 +204,11 @@ export default function GalleryHome() {
                     {row.image_url ? (
                       <img
                         src={row.image_url}
-                        alt={row.title}
-                        className="h-14 w-auto rounded-md border"
+                        alt={row.title || ""}
+                        className="h-14 w-auto rounded-md border bg-white"
                       />
                     ) : (
-                      <span className="text-muted-foreground">No image</span>
+                      <span className="text-neutral-500">No image</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap">{row.name}</td>
@@ -202,7 +216,7 @@ export default function GalleryHome() {
                   <td className="whitespace-nowrap">{row.position}</td>
                   <td className="text-right space-x-2">
                     <button
-                      className="rounded-lg border px-2 py-1"
+                      className="rounded-lg border px-2 py-1 hover:bg-neutral-50"
                       onClick={() =>
                         setE({
                           id: row.id,
@@ -214,19 +228,19 @@ export default function GalleryHome() {
                     >
                       Edit
                     </button>
-                    <label className="inline-flex items-center rounded-lg border px-2 py-1 cursor-pointer">
+                    <label className="inline-flex items-center rounded-lg border px-2 py-1 cursor-pointer hover:bg-neutral-50">
                       <input
                         type="file"
                         className="hidden"
                         accept="image/*"
                         onChange={(ev) =>
-                          onUpdateImage(ev.target.files?.[0] ?? null)
+                          onUpdateImage(row.id, ev.target.files?.[0] ?? null)
                         }
                       />
                       Edit image
                     </label>
                     <button
-                      className="rounded-lg border px-2 py-1 text-red-600"
+                      className="rounded-lg border px-2 py-1 text-red-600 hover:bg-red-50"
                       onClick={() => onDelete(row.id)}
                     >
                       Delete
@@ -239,7 +253,7 @@ export default function GalleryHome() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-3 py-6 text-center text-muted-foreground"
+                    className="px-3 py-6 text-center text-neutral-500"
                   >
                     No banners yet.
                   </td>
@@ -256,7 +270,7 @@ export default function GalleryHome() {
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Edit banner (ID {String(e.id)})</h2>
             <button
-              className="text-sm text-muted-foreground"
+              className="text-sm text-neutral-500"
               onClick={() =>
                 setE({ id: null, name: "", title: "", position: "" })
               }
@@ -270,7 +284,7 @@ export default function GalleryHome() {
             onSubmit={onUpdate}
           >
             <input
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Name"
               value={e.name}
               onChange={(ev) =>
@@ -278,7 +292,7 @@ export default function GalleryHome() {
               }
             />
             <input
-              className="md:col-span-2 rounded-lg border px-3 py-2"
+              className="md:col-span-2 rounded-lg border px-3 py-2 text-sm"
               placeholder="Title"
               value={e.title}
               onChange={(ev) =>
@@ -286,14 +300,14 @@ export default function GalleryHome() {
               }
             />
             <input
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Position"
               type="number"
               value={e.position}
               onChange={(ev) =>
                 setE((s) => ({
                   ...s,
-                  position: ev.target.valueAsNumber || "",
+                  position: ev.target.value === "" ? "" : Number(ev.target.value),
                 }))
               }
             />
@@ -301,7 +315,7 @@ export default function GalleryHome() {
               <button
                 type="submit"
                 disabled={update.isPending}
-                className="inline-flex items-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
+                className="inline-flex items-center rounded-lg border px-3 py-2 text-sm disabled:opacity-60 hover:bg-neutral-50"
               >
                 {update.isPending ? "Saving…" : "Save changes"}
               </button>
@@ -311,21 +325,4 @@ export default function GalleryHome() {
       )}
     </div>
   );
-}
-
-function normalizeError(err: unknown): string {
-  if (typeof err === "string") return err;
-  if (
-    err &&
-    typeof err === "object" &&
-    "message" in err &&
-    typeof (err as { message: unknown }).message === "string"
-  ) {
-    return (err as { message: string }).message;
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return "Unknown error";
-  }
 }

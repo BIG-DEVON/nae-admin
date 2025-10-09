@@ -1,9 +1,10 @@
 // src/features/awards/pages/AwardContent.tsx
-import { useSearchParams, Link } from 'react-router-dom';
-import { useState, useMemo } from 'react';
-import { useAwardContents } from '../hooks/useAwardContent';
-import { useAwardMutations } from '../hooks/useAwardMutations';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useSearchParams, Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useAwardContents } from "../hooks/useAwardContent";
+import { useAwardMutations } from "../hooks/useAwardMutations";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 type Row = {
   id: number | string;
@@ -20,32 +21,36 @@ type Row = {
 export default function AwardContents() {
   const [sp] = useSearchParams();
 
-  const sectionId = sp.get('section_id');
-  // ✅ Accept both award_id and awardId (for legacy links), but normalize to award_id going forward
-  const awardId = sp.get('award_id') ?? sp.get('awardId') ?? '';
+  const sectionId = sp.get("section_id");
+  // accept both award_id and awardId (legacy), prefer award_id
+  const awardId = sp.get("award_id") ?? sp.get("awardId") ?? "";
 
-  const { data, isLoading, isError, refetch } = useAwardContents(sectionId);
+  const { data, isLoading, isError, isFetching, refetch } = useAwardContents(sectionId);
   const { createContent, updateContent, deleteContent } = useAwardMutations();
 
-  const rows = useMemo<Row[]>(
-    () => (Array.isArray(data) ? (data as any) : []),
-    [data]
-  );
+  const rows = useMemo<Row[]>(() => (Array.isArray(data) ? (data as Row[]) : []), [data]);
 
-  // Create form
+  const lastPos = rows.length ? rows[rows.length - 1].position : 0;
+
+  // Create form (modal)
   const [createOpen, setCreateOpen] = useState(false);
   const [cForm, setCForm] = useState<Partial<Row>>({
-    award_section_id: sectionId ?? '',
-    position: (rows.at(-1)?.position ?? 0) + 1,
-    rank: '', name: '', pno: '', courseno: '', unit: '', year: ''
+    award_section_id: sectionId ?? "",
+    position: lastPos + 1,
+    rank: "",
+    name: "",
+    pno: "",
+    courseno: "",
+    unit: "",
+    year: "",
   });
 
-  // Inline edit tracking
-  const [editingId, setEditingId] = useState<Row['id'] | null>(null);
+  // Inline edit
+  const [editingId, setEditingId] = useState<Row["id"] | null>(null);
   const [eForm, setEForm] = useState<Partial<Row>>({});
 
   // Delete confirm
-  const [confirmId, setConfirmId] = useState<Row['id'] | null>(null);
+  const [confirmId, setConfirmId] = useState<Row["id"] | null>(null);
 
   if (!sectionId) {
     return (
@@ -53,52 +58,73 @@ export default function AwardContents() {
         <div className="mb-2 text-red-600">
           Missing required query param: <code>section_id</code>
         </div>
-        <Link to="/awards" className="text-sm underline">Go to Awards</Link>
+        <Link to="/awards" className="text-sm underline">
+          Go to Awards
+        </Link>
       </div>
     );
   }
 
   const onCreate = async () => {
-    if (!cForm.position) cForm.position = 0;
-    await createContent.mutateAsync({
-      award_section_id: Number(sectionId),
-      position: Number(cForm.position),
-      rank: cForm.rank?.trim() || '',
-      name: cForm.name?.trim() || '',
-      pno: cForm.pno?.trim() || '',
-      courseno: cForm.courseno?.trim() || '',
-      unit: cForm.unit?.trim() || '',
-      year: cForm.year?.trim() || '',
-    });
-    setCreateOpen(false);
-    setCForm({
-      award_section_id: sectionId ?? '',
-      position: (rows.at(-1)?.position ?? 0) + 1,
-      rank: '', name: '', pno: '', courseno: '', unit: '', year: ''
-    });
-    refetch();
+    try {
+      await createContent.mutateAsync({
+        award_section_id: Number(sectionId),
+        position: Number(cForm.position ?? 0),
+        rank: cForm.rank?.trim() || "",
+        name: cForm.name?.trim() || "",
+        pno: cForm.pno?.trim() || "",
+        courseno: cForm.courseno?.trim() || "",
+        unit: cForm.unit?.trim() || "",
+        year: cForm.year?.trim() || "",
+      });
+      notifySuccess("Content created");
+      setCreateOpen(false);
+      setCForm({
+        award_section_id: sectionId ?? "",
+        position: (rows.length ? rows[rows.length - 1].position : 0) + 1,
+        rank: "",
+        name: "",
+        pno: "",
+        courseno: "",
+        unit: "",
+        year: "",
+      });
+      refetch();
+    } catch (err) {
+      notifyError("Failed to create content", extractErrorMessage(err));
+    }
   };
 
-  const onSave = async (id: Row['id']) => {
-    await updateContent.mutateAsync({
-      content_id: id,
-      award_section_id: Number(sectionId),
-      position: Number(eForm.position ?? 0),
-      rank: eForm.rank?.trim() || '',
-      name: eForm.name?.trim() || '',
-      pno: eForm.pno?.trim() || '',
-      courseno: eForm.courseno?.trim() || '',
-      unit: eForm.unit?.trim() || '',
-      year: eForm.year?.trim() || '',
-    });
-    setEditingId(null);
-    setEForm({});
-    refetch();
+  const onSave = async (id: Row["id"]) => {
+    try {
+      await updateContent.mutateAsync({
+        content_id: id,
+        award_section_id: Number(sectionId),
+        position: Number(eForm.position ?? 0),
+        rank: eForm.rank?.trim() || "",
+        name: eForm.name?.trim() || "",
+        pno: eForm.pno?.trim() || "",
+        courseno: eForm.courseno?.trim() || "",
+        unit: eForm.unit?.trim() || "",
+        year: eForm.year?.trim() || "",
+      });
+      notifySuccess("Content updated");
+      setEditingId(null);
+      setEForm({});
+      refetch();
+    } catch (err) {
+      notifyError("Failed to update content", extractErrorMessage(err));
+    }
   };
 
-  const onDelete = async (id: Row['id']) => {
-    await deleteContent.mutateAsync(id);
-    refetch();
+  const onDelete = async (id: Row["id"]) => {
+    try {
+      await deleteContent.mutateAsync(id);
+      notifySuccess("Content deleted");
+      refetch();
+    } catch (err) {
+      notifyError("Failed to delete content", extractErrorMessage(err));
+    }
   };
 
   return (
@@ -106,16 +132,21 @@ export default function AwardContents() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Section Contents</h1>
         <div className="flex items-center gap-2">
-          {/* ✅ Always navigate using award_id to satisfy the Sections page */}
+          {isFetching && (
+            <span className="text-xs rounded-full px-2 py-1 border text-neutral-600">
+              Refreshing…
+            </span>
+          )}
           <Link
-            to={awardId ? `/awards/sections?award_id=${awardId}` : '/awards/sections'}
+            to={awardId ? `/awards/sections?award_id=${awardId}` : "/awards/sections"}
             className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
           >
             ← Back to Sections
           </Link>
           <button
             onClick={() => setCreateOpen(true)}
-            className="rounded-lg bg-black text-white px-3 py-1.5 text-sm"
+            className="rounded-lg bg-black text-white px-3 py-1.5 text-sm disabled:opacity-60"
+            disabled={createContent.isPending}
           >
             New content
           </button>
@@ -138,92 +169,144 @@ export default function AwardContents() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td className="px-3 py-3" colSpan={8}>Loading…</td></tr>
+              <tr>
+                <td className="px-3 py-3" colSpan={8}>
+                  Loading…
+                </td>
+              </tr>
             )}
             {isError && (
-              <tr><td className="px-3 py-3 text-red-600" colSpan={8}>Failed to load.</td></tr>
+              <tr>
+                <td className="px-3 py-3 text-red-600" colSpan={8}>
+                  Failed to load.
+                </td>
+              </tr>
             )}
             {rows.map((r) => (
               <tr key={String(r.id)} className="border-t">
+                {/* Position */}
                 <td className="px-3 py-2 w-24">
                   {editingId === r.id ? (
                     <input
                       type="number"
                       className="border rounded-lg px-2 py-1 w-24"
-                      defaultValue={r.position ?? 0}
-                      onChange={(e) => setEForm((s) => ({ ...s, position: Number(e.target.value) }))}
+                      value={Number(eForm.position ?? r.position)}
+                      onChange={(e) =>
+                        setEForm((s) => ({
+                          ...s,
+                          position:
+                            e.target.value === "" ? 0 : Number(e.target.value),
+                        }))
+                      }
                     />
                   ) : (
-                    r.position ?? '—'
+                    r.position ?? "—"
                   )}
                 </td>
+                {/* Rank */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-32"
-                      defaultValue={r.rank || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, rank: e.target.value }))}
+                      value={eForm.rank ?? r.rank ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, rank: e.target.value }))
+                      }
                     />
-                  ) : (r.rank || '—')}
+                  ) : (
+                    r.rank || "—"
+                  )}
                 </td>
+                {/* Name */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-48"
-                      defaultValue={r.name || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, name: e.target.value }))}
+                      value={eForm.name ?? r.name ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, name: e.target.value }))
+                      }
                     />
-                  ) : (r.name || '—')}
+                  ) : (
+                    r.name || "—"
+                  )}
                 </td>
+                {/* PNO */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-36"
-                      defaultValue={r.pno || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, pno: e.target.value }))}
+                      value={eForm.pno ?? r.pno ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, pno: e.target.value }))
+                      }
                     />
-                  ) : (r.pno || '—')}
+                  ) : (
+                    r.pno || "—"
+                  )}
                 </td>
+                {/* Course No */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-36"
-                      defaultValue={r.courseno || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, courseno: e.target.value }))}
+                      value={eForm.courseno ?? r.courseno ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, courseno: e.target.value }))
+                      }
                     />
-                  ) : (r.courseno || '—')}
+                  ) : (
+                    r.courseno || "—"
+                  )}
                 </td>
+                {/* Unit */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-36"
-                      defaultValue={r.unit || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, unit: e.target.value }))}
+                      value={eForm.unit ?? r.unit ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, unit: e.target.value }))
+                      }
                     />
-                  ) : (r.unit || '—')}
+                  ) : (
+                    r.unit || "—"
+                  )}
                 </td>
+                {/* Year */}
                 <td className="px-3 py-2">
                   {editingId === r.id ? (
                     <input
                       className="border rounded-lg px-2 py-1 w-28"
-                      defaultValue={r.year || ''}
-                      onChange={(e) => setEForm((s) => ({ ...s, year: e.target.value }))}
+                      value={eForm.year ?? r.year ?? ""}
+                      onChange={(e) =>
+                        setEForm((s) => ({ ...s, year: e.target.value }))
+                      }
                     />
-                  ) : (r.year || '—')}
+                  ) : (
+                    r.year || "—"
+                  )}
                 </td>
+
+                {/* Actions */}
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2 justify-end">
                     {editingId === r.id ? (
                       <>
                         <button
                           onClick={() => onSave(r.id)}
-                          className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-neutral-50"
+                          disabled={updateContent.isPending}
+                          className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-neutral-50 disabled:opacity-60"
                         >
-                          Save
+                          {updateContent.isPending ? "Saving…" : "Save"}
                         </button>
                         <button
-                          onClick={() => { setEditingId(null); setEForm({}); }}
-                          className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-neutral-50"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEForm({});
+                          }}
+                          disabled={updateContent.isPending}
+                          className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-neutral-50 disabled:opacity-60"
                         >
                           Cancel
                         </button>
@@ -231,7 +314,10 @@ export default function AwardContents() {
                     ) : (
                       <>
                         <button
-                          onClick={() => { setEditingId(r.id); setEForm(r); }}
+                          onClick={() => {
+                            setEditingId(r.id);
+                            setEForm(r);
+                          }}
                           className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-neutral-50"
                         >
                           Edit
@@ -248,102 +334,119 @@ export default function AwardContents() {
                 </td>
               </tr>
             ))}
+            {!isLoading && !isError && rows.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-3 py-6 text-center text-neutral-500">
+                  No contents yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
+      {/* Custom modal (replaces <dialog>) */}
       {createOpen && (
-        <dialog open className="rounded-2xl p-0 w-[min(96vw,720px)]">
-          <form method="dialog" onSubmit={(e) => { e.preventDefault(); onCreate(); }}>
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Create Content</h3>
-                <button
-                  type="button"
-                  onClick={() => setCreateOpen(false)}
-                  className="text-sm text-neutral-600"
-                >
-                  Close
-                </button>
-              </div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4"
+        >
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h3 className="text-lg font-semibold">Create Content</h3>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="text-sm text-neutral-600"
+              >
+                Close
+              </button>
+            </div>
 
-              <div className="grid md:grid-cols-3 gap-3">
-                {/* fields... unchanged */}
-                <label className="grid gap-1 text-sm">
-                  <span>Position</span>
+            <div className="p-5">
+              {/* Strict grid: 3 columns, every field same width */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <L label="Position">
                   <input
                     type="number"
-                    className="border rounded-lg px-3 py-2"
+                    className="border rounded-lg px-3 py-2 w-full"
                     value={cForm.position ?? 0}
-                    onChange={(e) => setCForm((s) => ({ ...s, position: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setCForm((s) => ({
+                        ...s,
+                        position: e.target.value === "" ? 0 : Number(e.target.value),
+                      }))
+                    }
                     required
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Rank</span>
+                </L>
+                <L label="Rank">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.rank || ''}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.rank || ""}
                     onChange={(e) => setCForm((s) => ({ ...s, rank: e.target.value }))}
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Name</span>
+                </L>
+                <L label="Name">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.name || ''}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.name || ""}
                     onChange={(e) => setCForm((s) => ({ ...s, name: e.target.value }))}
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>PNO</span>
+                </L>
+                <L label="PNO">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.pno || ''}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.pno || ""}
                     onChange={(e) => setCForm((s) => ({ ...s, pno: e.target.value }))}
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Course No</span>
+                </L>
+                <L label="Course No">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.courseno || ''}
-                    onChange={(e) => setCForm((s) => ({ ...s, courseno: e.target.value }))}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.courseno || ""}
+                    onChange={(e) =>
+                      setCForm((s) => ({ ...s, courseno: e.target.value }))
+                    }
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Unit</span>
+                </L>
+                <L label="Unit">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.unit || ''}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.unit || ""}
                     onChange={(e) => setCForm((s) => ({ ...s, unit: e.target.value }))}
                   />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span>Year</span>
+                </L>
+                <L label="Year">
                   <input
-                    className="border rounded-lg px-3 py-2"
-                    value={cForm.year || ''}
+                    className="border rounded-lg px-3 py-2 w-full"
+                    value={cForm.year || ""}
                     onChange={(e) => setCForm((s) => ({ ...s, year: e.target.value }))}
                   />
-                </label>
+                </L>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setCreateOpen(false)}
                   className="px-3 py-1.5 rounded-lg border text-sm"
+                  disabled={createContent.isPending}
                 >
                   Cancel
                 </button>
-                <button className="px-3 py-1.5 rounded-lg bg-black text-white text-sm">
-                  Create
+                <button
+                  onClick={onCreate}
+                  className="px-3 py-1.5 rounded-lg bg-black text-white text-sm disabled:opacity-60"
+                  disabled={createContent.isPending}
+                >
+                  {createContent.isPending ? "Creating…" : "Create"}
                 </button>
               </div>
             </div>
-          </form>
-        </dialog>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog
@@ -352,8 +455,24 @@ export default function AwardContents() {
         onConfirm={() => (confirmId != null ? onDelete(confirmId) : undefined)}
         title="Delete content?"
         message="This will permanently remove the item."
-        confirmText="Delete"
+        confirmText={deleteContent.isPending ? "Deleting…" : "Delete"}
       />
     </div>
+  );
+}
+
+/** Small label wrapper to keep markup tidy and alignment consistent */
+function L({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="text-[13px] text-neutral-700">{label}</span>
+      {children}
+    </label>
   );
 }

@@ -1,15 +1,16 @@
 // src/features/awards/pages/AwardSections.tsx
-import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { useAwardSections } from '../hooks/useAwardSections';
-import { useAwardMutations } from '../hooks/useAwardMutations';
+import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useAwardSections } from "../hooks/useAwardSections";
+import { useAwardMutations } from "../hooks/useAwardMutations";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 // normalize helper (works with [], {data:[]}, {results:[]}, {items:[]})
 function toArray<T = unknown>(input: unknown): T[] {
   if (Array.isArray(input)) return input as T[];
-  if (input && typeof input === 'object') {
+  if (input && typeof input === "object") {
     const obj = input as Record<string, unknown>;
-    for (const k of ['data', 'results', 'items']) {
+    for (const k of ["data", "results", "items"]) {
       const v = obj[k];
       if (Array.isArray(v)) return v as T[];
     }
@@ -17,13 +18,18 @@ function toArray<T = unknown>(input: unknown): T[] {
   return [];
 }
 
-type SectionRow = { id: number | string; award_id: number | string; title: string; position: number };
+type SectionRow = {
+  id: number | string;
+  award_id: number | string;
+  title: string;
+  position: number;
+};
 
 export default function AwardSections() {
   const [params] = useSearchParams();
 
-  // ✅ Accept both award_id and awardId (legacy) but normalize to a single number
-  const awardParam = params.get('award_id') ?? params.get('awardId');
+  // Accept both award_id and awardId (legacy) but normalize to a single number
+  const awardParam = params.get("award_id") ?? params.get("awardId");
   const awardId = awardParam ? Number(awardParam) : NaN;
 
   if (!awardParam || Number.isNaN(awardId)) {
@@ -32,36 +38,61 @@ export default function AwardSections() {
         <p className="text-red-600">
           Missing or invalid <code>award_id</code> query parameter.
         </p>
-        <Link to="/awards" className="inline-flex rounded-lg border px-3 py-1.5 text-sm">
+        <Link
+          to="/awards"
+          className="inline-flex rounded-lg border px-3 py-1.5 text-sm"
+        >
           Back to Awards
         </Link>
       </div>
     );
   }
 
-  const { data, isLoading, isError, refetch } = useAwardSections(awardId);
+  const { data, isLoading, isError, isFetching, refetch } =
+    useAwardSections(awardId);
   const items = toArray<SectionRow>(data);
 
-  // ✅ use the consolidated hook
   const { createSection, updateSection, deleteSection } = useAwardMutations();
 
-  const [title, setTitle] = useState('');
-  const [position, setPosition] = useState<number | ''>('');
+  const [title, setTitle] = useState("");
+  const [position, setPosition] = useState<number | "">("");
 
   const onCreate = async () => {
-    if (!title) return alert('Title required');
-    await createSection.mutateAsync({ award_id: awardId, title, position: Number(position || 0) });
-    setTitle('');
-    setPosition('');
-    refetch();
+    const t = title.trim();
+    const p = Number(position || 0);
+    if (!t) {
+      notifyError("Title required");
+      return;
+    }
+    try {
+      await createSection.mutateAsync({
+        award_id: awardId,
+        title: t,
+        position: p,
+      });
+      notifySuccess("Section created");
+      setTitle("");
+      setPosition("");
+      refetch();
+    } catch (err) {
+      notifyError("Failed to create section", extractErrorMessage(err));
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Award Sections</h1>
-        <div className="space-x-2">
-          <Link to="/awards" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-zinc-50">
+        <div className="flex items-center gap-2">
+          {isFetching && (
+            <span className="text-xs rounded-full px-2 py-1 border text-neutral-600">
+              Refreshing…
+            </span>
+          )}
+          <Link
+            to="/awards"
+            className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
             ← Back
           </Link>
         </div>
@@ -69,7 +100,9 @@ export default function AwardSections() {
 
       {/* Create */}
       <div className="rounded-xl border p-4 space-y-3">
-        <div className="text-sm font-medium">Create section for Award #{awardId}</div>
+        <div className="text-sm font-medium">
+          Create section for Award #{awardId}
+        </div>
         <div className="grid gap-3 md:grid-cols-3">
           <input
             className="rounded-lg border px-3 py-2 text-sm"
@@ -82,14 +115,16 @@ export default function AwardSections() {
             placeholder="Position"
             type="number"
             value={position}
-            onChange={(e) => setPosition(e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) =>
+              setPosition(e.target.value === "" ? "" : Number(e.target.value))
+            }
           />
           <button
             onClick={onCreate}
             disabled={createSection.isPending}
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-60"
           >
-            {createSection.isPending ? 'Creating…' : 'Create'}
+            {createSection.isPending ? "Creating…" : "Create"}
           </button>
         </div>
       </div>
@@ -126,16 +161,40 @@ export default function AwardSections() {
                 awardId={awardId}
                 item={s}
                 onSave={async (patch) => {
-                  await updateSection.mutateAsync({ section_id: s.id, award_id: awardId, ...patch });
-                  refetch();
+                  try {
+                    await updateSection.mutateAsync({
+                      section_id: s.id,
+                      award_id: awardId,
+                      ...patch,
+                    });
+                    notifySuccess("Section updated");
+                    refetch();
+                  } catch (err) {
+                    notifyError("Failed to update", extractErrorMessage(err));
+                  }
                 }}
                 onDelete={async () => {
-                  if (!confirm('Delete section?')) return;
-                  await deleteSection.mutateAsync(s.id);
-                  refetch();
+                  if (!confirm("Delete section?")) return;
+                  try {
+                    await deleteSection.mutateAsync(s.id);
+                    notifySuccess("Section deleted");
+                    refetch();
+                  } catch (err) {
+                    notifyError("Failed to delete", extractErrorMessage(err));
+                  }
                 }}
               />
             ))}
+            {!isLoading && !isError && items.length === 0 && (
+              <tr>
+                <td
+                  className="px-3 py-6 text-center text-neutral-500"
+                  colSpan={4}
+                >
+                  No sections yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -156,9 +215,9 @@ function Row({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
-  const [position, setPosition] = useState<number | ''>(item.position);
+  const [position, setPosition] = useState<number | "">(item.position);
 
-  // If the parent refetches and passes a different item, keep inputs in sync when not editing
+  // Keep inputs in sync when parent refetches (while not editing)
   useEffect(() => {
     if (!isEditing) {
       setTitle(item.title);
@@ -199,7 +258,9 @@ function Row({
             className="rounded-lg border px-2 py-1 text-sm w-24"
             type="number"
             value={position}
-            onChange={(e) => setPosition(e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) =>
+              setPosition(e.target.value === "" ? "" : Number(e.target.value))
+            }
           />
         ) : (
           <span>{item.position}</span>
@@ -230,7 +291,7 @@ function Row({
             >
               Edit
             </button>
-            {/* ✅ Use award_id consistently so the contents page can build a correct back link */}
+            {/* Keep award_id in the URL so the contents page can link back correctly */}
             <Link
               to={`/awards/contents?section_id=${item.id}&award_id=${awardId}`}
               className="rounded-lg border px-2 py-1 hover:bg-zinc-50"

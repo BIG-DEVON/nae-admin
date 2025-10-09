@@ -2,13 +2,14 @@
 import { useMemo, useState } from "react";
 import OverviewTabs from "@/features/overview/components/OverviewTabs";
 import { useOverviewCommanders } from "../hooks/useOverview";
+import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
 
 type Row = {
   id: number | string;
   title: string;
   content?: string;
   position: number;
-  image_url?: string;
+  image_url?: string | null;
 };
 
 // Normalize API shapes: [], {data:[]}, {results:[]}, {items:[]}
@@ -30,7 +31,7 @@ export default function Commanders() {
   const rows = useMemo<Row[]>(() => toArray<Row>(query.data), [query.data]);
   const lastPos = rows.length ? rows[rows.length - 1].position : 0;
 
-  // create form
+  // Create form
   const [f, setF] = useState<{
     title: string;
     content: string;
@@ -44,23 +45,36 @@ export default function Commanders() {
   });
 
   const onCreate = async () => {
-    if (!f.title || f.position === "" || !f.image) {
-      alert("Title, position and image are required");
+    const title = f.title.trim();
+    const content = f.content.trim();
+    const position = f.position === "" ? "" : Number(f.position);
+
+    if (!title || position === "" || !f.image) {
+      notifyError("Title, position and image are required");
       return;
     }
-    await create.mutateAsync({
-      title: f.title,
-      content: f.content,
-      position: Number(f.position),
-      image: f.image,
-    });
-    const freshLast = rows.length ? rows[rows.length - 1].position : 0;
-    setF({
-      title: "",
-      content: "",
-      position: freshLast + 1,
-      image: null,
-    });
+
+    try {
+      await create.mutateAsync({
+        title,
+        content,
+        position: Number(position),
+        image: f.image,
+      });
+      notifySuccess("Commander created");
+
+      // reset form; compute a safe next position from current rows
+      const freshLast = rows.length ? rows[rows.length - 1].position : 0;
+      setF({
+        title: "",
+        content: "",
+        position: freshLast + 1,
+        image: null,
+      });
+    } catch (err) {
+      // e.g., “position already exists” or any server-side validation
+      notifyError("Failed to create commander", extractErrorMessage(err));
+    }
   };
 
   return (
@@ -152,10 +166,7 @@ export default function Commanders() {
 
             {!query.isLoading && rows.length === 0 && (
               <tr>
-                <td
-                  className="px-3 py-6 text-center text-neutral-500"
-                  colSpan={6}
-                >
+                <td className="px-3 py-6 text-center text-neutral-500" colSpan={6}>
                   No commanders yet.
                 </td>
               </tr>
@@ -183,24 +194,42 @@ function Row({
   const [content, setContent] = useState(item.content ?? "");
   const [pos, setPos] = useState<number | "">(item.position);
 
+  const hasImage =
+    typeof item.image_url === "string" && item.image_url.trim().length > 0;
+
   const save = async () => {
-    await actions.update.mutateAsync({
-      commander_id: item.id,
-      title,
-      content,
-      position: Number(pos || 0),
-    });
-    setEdit(false);
+    try {
+      await actions.update.mutateAsync({
+        commander_id: item.id,
+        title: title.trim(),
+        content: content.trim(),
+        position: Number(pos || 0),
+      });
+      notifySuccess("Commander updated");
+      setEdit(false);
+    } catch (err) {
+      notifyError("Failed to update commander", extractErrorMessage(err));
+    }
   };
 
   const changeImage = async (file: File | null | undefined) => {
     if (!file) return;
-    await actions.updateImage.mutateAsync({ commander_id: item.id, image: file });
+    try {
+      await actions.updateImage.mutateAsync({ commander_id: item.id, image: file });
+      notifySuccess("Image updated");
+    } catch (err) {
+      notifyError("Failed to update image", extractErrorMessage(err));
+    }
   };
 
   const del = async () => {
     if (!confirm("Delete this commander?")) return;
-    await actions.remove.mutateAsync(item.id);
+    try {
+      await actions.remove.mutateAsync(item.id);
+      notifySuccess("Commander deleted");
+    } catch (err) {
+      notifyError("Failed to delete commander", extractErrorMessage(err));
+    }
   };
 
   return (
@@ -208,11 +237,11 @@ function Row({
       <td className="whitespace-nowrap">{String(item.id)}</td>
 
       <td>
-        {item.image_url ? (
+        {hasImage ? (
           <img
-            src={item.image_url}
+            src={item.image_url as string}
             alt=""
-            className="h-14 w-14 object-cover rounded-md border"
+            className="h-14 w-14 object-cover rounded-md border bg-white"
           />
         ) : (
           <span className="text-neutral-500">No image</span>
