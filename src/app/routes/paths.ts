@@ -28,16 +28,5 @@ export const ROUTES = {
   overviewHistory: "/overview/history",
   overviewOrganogram: "/overview/organogram",
   overviewCommanders: "/overview/commanders",
+  overviewChronicles: "/overview/chronicles", // ✅ added
 } as const;
-
-
-
-// export const paths = {
-//   root: "/",
-//   login: "/login",
-//   dashboard: "/dashboard",
-//   gallery: "/gallery",
-//   awards: "/awards",
-//   formations: "/formations",
-//   overview: "/overview"
-// } as const;

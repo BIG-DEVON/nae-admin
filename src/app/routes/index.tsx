@@ -28,6 +28,8 @@ const SapperChroniclesContents  = lazy(() => import('@/features/formations/pages
 const OverviewHistory    = lazy(() => import('@/features/overview/pages/History'));
 const OverviewOrganogram = lazy(() => import('@/features/overview/pages/Organogram'));
 const OverviewCommanders = lazy(() => import('@/features/overview/pages/Commanders'));
+// ✅ New: Overview Chronicles page
+const OverviewChronicles = lazy(() => import('@/features/overview/pages/Chronicles'));
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
@@ -82,6 +84,8 @@ export default function AppRouter() {
               <Route path="overview/history" element={<OverviewHistory />} />
               <Route path="overview/organogram" element={<OverviewOrganogram />} />
               <Route path="overview/commanders" element={<OverviewCommanders />} />
+              {/* ✅ New route */}
+              <Route path="overview/chronicles" element={<OverviewChronicles />} />
             </Route>
           </Route>
 
@@ -95,4 +99,3 @@ export default function AppRouter() {
     </BrowserRouter>
   );
 }
-

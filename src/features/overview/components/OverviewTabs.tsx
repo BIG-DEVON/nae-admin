@@ -10,7 +10,10 @@ export default function OverviewTabs() {
   const active = "bg-green-600 text-white border-green-600";
 
   return (
-    <nav className="mb-4 flex gap-2">
+    <nav
+      className="mb-4 flex flex-wrap gap-2 overflow-x-auto"
+      aria-label="Overview navigation"
+    >
       <NavLink
         to={ROUTES.overviewHistory}
         className={({ isActive }) => cn(base, isActive ? active : inactive)}
@@ -33,6 +36,15 @@ export default function OverviewTabs() {
       >
         <span className="inline-block h-2 w-2 rounded-full bg-current/80" />
         Commanders
+      </NavLink>
+
+      {/* New: Chronicles */}
+      <NavLink
+        to={ROUTES.overviewChronicles}
+        className={({ isActive }) => cn(base, isActive ? active : inactive)}
+      >
+        <span className="inline-block h-2 w-2 rounded-full bg-current/80" />
+        Chronicles
       </NavLink>
     </nav>
   );
