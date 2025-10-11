@@ -21,11 +21,7 @@ function toArray<T = unknown>(input: unknown): T[] {
   return [];
 }
 function getId(obj: Record<string, unknown>): string | number | undefined {
-  const cand =
-    (obj.overview_id as unknown) ??
-    (obj.id as unknown) ??
-    (obj.chronicles_id as unknown) ??
-    (obj.section_id as unknown);
+  const cand = obj.overview_id ?? obj.id ?? obj.chronicles_id ?? obj.section_id;
   return typeof cand === "string" || typeof cand === "number" ? cand : undefined;
 }
 
@@ -46,51 +42,58 @@ type ContentRow = {
   decoration?: string;
 };
 
+/** Local form type (allow empty string while typing) */
+type LocalContentForm = {
+  position: number | "";
+  rank: string;
+  name: string;
+  pno: string;
+  period: string;
+  decoration: string;
+};
+
 /* ---------------------------------- page ---------------------------------- */
 export default function Chronicles() {
   /* Sections */
   const sectionsQ = useOverviewChroniclesList();
   const sections: Section[] = useMemo(() => {
-    return toArray<Record<string, unknown>>(sectionsQ.data).map((r) => ({
-      id: getId(r)!,
-      title: String((r.title as string) ?? ""),
-      position: Number((r.position as number) ?? 0),
-    }));
+    return toArray(sectionsQ.data).map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        id: getId(row)!,
+        title: String(row.title ?? ""),
+        position: Number(row.position ?? 0),
+      };
+    });
   }, [sectionsQ.data]);
 
   const [selected, setSelected] = useState<string | number | null>(null);
 
   // pick first section by default when list loads
   useEffect(() => {
-    if (selected == null && sections.length) setSelected(sections[0].id);
+    if (!selected && sections.length) setSelected(sections[0].id);
   }, [sections, selected]);
 
-  /* Section & Content mutations */
-  const {
-    create,
-    update,
-    remove,
-    createContent,
-    updateContent,
-    deleteContent,
-  } = useOverviewChroniclesMutations();
+  /* Mutations */
+  const { create, update, remove, createContent, updateContent, deleteContent } =
+    useOverviewChroniclesMutations();
 
   /* Contents for selected section */
   const contentsQ = useOverviewChroniclesContents(selected);
   const rows: ContentRow[] = useMemo(() => {
-    return toArray<Record<string, unknown>>(contentsQ.data).map((r) => ({
-      id: getId(r)!,
-      chronicles_id:
-        (typeof r.chronicles_id === "string" || typeof r.chronicles_id === "number"
-          ? r.chronicles_id
-          : selected) ?? 0,
-      position: Number((r.position as number) ?? 0),
-      rank: (r.rank as string) ?? "",
-      name: (r.name as string) ?? "",
-      pno: (r.pno as string) ?? "",
-      period: (r.period as string) ?? "",
-      decoration: (r.decoration as string) ?? "",
-    }));
+    return toArray(contentsQ.data).map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        id: getId(row)!,
+        chronicles_id: (row.chronicles_id as string | number) ?? (selected as string | number),
+        position: Number(row.position ?? 0),
+        rank: (row.rank as string) ?? "",
+        name: (row.name as string) ?? "",
+        pno: (row.pno as string) ?? "",
+        period: (row.period as string) ?? "",
+        decoration: (row.decoration as string) ?? "",
+      };
+    });
   }, [contentsQ.data, selected]);
 
   /* --------------------------- Section create/edit --------------------------- */
@@ -110,8 +113,7 @@ export default function Chronicles() {
       await create.mutateAsync({ title, position: Number(pos) });
       notifySuccess("Section created");
       setSTitle("");
-      // simple local increment to suggest next slot (server will re-sort anyway)
-      setSPos((prev) => (typeof prev === "number" ? prev + 1 : ""));
+      setSPos((sections[sections.length - 1]?.position ?? 0) + 1);
     } catch (err) {
       notifyError("Failed to create section", extractErrorMessage(err));
     }
@@ -125,7 +127,8 @@ export default function Chronicles() {
       await update.mutateAsync({
         overview_id: section_id,
         title: patch.title,
-        position: patch.position,
+        position:
+          patch.position === undefined ? undefined : Number(patch.position),
       });
       notifySuccess("Section updated");
     } catch (err) {
@@ -138,9 +141,7 @@ export default function Chronicles() {
     try {
       await remove.mutateAsync(section_id);
       notifySuccess("Section deleted");
-      if (String(selected) === String(section_id)) {
-        setSelected(null);
-      }
+      if (String(selected) === String(section_id)) setSelected(null);
     } catch (err) {
       notifyError("Failed to delete section", extractErrorMessage(err));
     }
@@ -149,7 +150,7 @@ export default function Chronicles() {
   /* ----------------------------- Content create ----------------------------- */
   const lastContentPos = rows.length ? rows[rows.length - 1].position : 0;
 
-  const [cForm, setCForm] = useState<Partial<ContentRow>>({
+  const [cForm, setCForm] = useState<LocalContentForm>({
     position: lastContentPos + 1,
     rank: "",
     name: "",
@@ -180,11 +181,11 @@ export default function Chronicles() {
       await createContent.mutateAsync({
         chronicles_id: selected,
         position: Number(cForm.position),
-        rank: cForm.rank ?? "",
-        name: cForm.name ?? "",
-        pno: cForm.pno ?? "",
-        period: cForm.period ?? "",
-        decoration: cForm.decoration ?? "",
+        rank: cForm.rank,
+        name: cForm.name,
+        pno: cForm.pno,
+        period: cForm.period,
+        decoration: cForm.decoration,
       });
       notifySuccess("Content created");
       setCForm({
@@ -308,10 +309,7 @@ export default function Chronicles() {
                 )}
                 {!sectionsQ.isLoading && sections.length === 0 && (
                   <tr>
-                    <td
-                      className="px-3 py-6 text-center text-neutral-500"
-                      colSpan={4}
-                    >
+                    <td className="px-3 py-6 text-center text-neutral-500" colSpan={4}>
                       No sections yet.
                     </td>
                   </tr>
@@ -337,9 +335,6 @@ export default function Chronicles() {
             <h2 className="font-medium">
               Contents {selected ? `(Section #${selected})` : ""}
             </h2>
-            {contentsQ.isFetching && (
-              <span className="text-xs text-neutral-500">Refreshing…</span>
-            )}
           </div>
 
           {/* Create content */}
@@ -348,7 +343,7 @@ export default function Chronicles() {
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Position"
               type="number"
-              value={cForm.position ?? ""}
+              value={cForm.position}
               onChange={(e) =>
                 setCForm((s) => ({
                   ...s,
@@ -360,38 +355,36 @@ export default function Chronicles() {
             <input
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Rank"
-              value={cForm.rank ?? ""}
+              value={cForm.rank}
               onChange={(e) => setCForm((s) => ({ ...s, rank: e.target.value }))}
               aria-label="Content rank"
             />
             <input
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Name"
-              value={cForm.name ?? ""}
+              value={cForm.name}
               onChange={(e) => setCForm((s) => ({ ...s, name: e.target.value }))}
               aria-label="Content name"
             />
             <input
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="PNO"
-              value={cForm.pno ?? ""}
+              value={cForm.pno}
               onChange={(e) => setCForm((s) => ({ ...s, pno: e.target.value }))}
               aria-label="Content PNO"
             />
             <input
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Period"
-              value={cForm.period ?? ""}
+              value={cForm.period}
               onChange={(e) => setCForm((s) => ({ ...s, period: e.target.value }))}
               aria-label="Content period"
             />
             <input
               className="rounded-lg border px-3 py-2 text-sm"
               placeholder="Decoration"
-              value={cForm.decoration ?? ""}
-              onChange={(e) =>
-                setCForm((s) => ({ ...s, decoration: e.target.value }))
-              }
+              value={cForm.decoration}
+              onChange={(e) => setCForm((s) => ({ ...s, decoration: e.target.value }))}
               aria-label="Content decoration"
             />
             <div className="md:col-span-6">
@@ -429,13 +422,8 @@ export default function Chronicles() {
                 )}
                 {!contentsQ.isLoading && rows.length === 0 && (
                   <tr>
-                    <td
-                      className="px-3 py-6 text-center text-neutral-500"
-                      colSpan={7}
-                    >
-                      {selected
-                        ? "No rows yet."
-                        : "Select a section to view contents."}
+                    <td className="px-3 py-6 text-center text-neutral-500" colSpan={7}>
+                      {selected ? "No rows yet." : "Select a section to view contents."}
                     </td>
                   </tr>
                 )}
@@ -578,7 +566,7 @@ function ContentRow({
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [f, setF] = useState<Partial<ContentRow>>({
+  const [f, setF] = useState<LocalContentForm>({
     position: item.position,
     rank: item.rank ?? "",
     name: item.name ?? "",
@@ -607,7 +595,7 @@ function ContentRow({
           <input
             type="number"
             className="rounded-lg border px-2 py-1 w-24"
-            value={(f.position as number) ?? ""}
+            value={f.position}
             onChange={(e) =>
               setF((s) => ({
                 ...s,
@@ -623,7 +611,7 @@ function ContentRow({
         {editing ? (
           <input
             className="rounded-lg border px-2 py-1 w-28"
-            value={f.rank ?? ""}
+            value={f.rank}
             onChange={(e) => setF((s) => ({ ...s, rank: e.target.value }))}
           />
         ) : (
@@ -634,7 +622,7 @@ function ContentRow({
         {editing ? (
           <input
             className="rounded-lg border px-2 py-1 w-52"
-            value={f.name ?? ""}
+            value={f.name}
             onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))}
           />
         ) : (
@@ -645,7 +633,7 @@ function ContentRow({
         {editing ? (
           <input
             className="rounded-lg border px-2 py-1 w-40"
-            value={f.pno ?? ""}
+            value={f.pno}
             onChange={(e) => setF((s) => ({ ...s, pno: e.target.value }))}
           />
         ) : (
@@ -656,7 +644,7 @@ function ContentRow({
         {editing ? (
           <input
             className="rounded-lg border px-2 py-1 w-40"
-            value={f.period ?? ""}
+            value={f.period}
             onChange={(e) => setF((s) => ({ ...s, period: e.target.value }))}
           />
         ) : (
@@ -667,7 +655,7 @@ function ContentRow({
         {editing ? (
           <input
             className="rounded-lg border px-2 py-1 w-48"
-            value={f.decoration ?? ""}
+            value={f.decoration}
             onChange={(e) => setF((s) => ({ ...s, decoration: e.target.value }))}
           />
         ) : (
@@ -680,7 +668,7 @@ function ContentRow({
             <button
               onClick={() => {
                 onSave({
-                  position: (f.position as number) ?? item.position,
+                  position: f.position === "" ? undefined : Number(f.position),
                   rank: f.rank,
                   name: f.name,
                   pno: f.pno,
