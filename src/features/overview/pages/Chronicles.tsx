@@ -363,7 +363,7 @@ export default function Chronicles() {
                   ...s,
                   position:
                     e.target.value === ""
-                      ? ""
+                      ? undefined
                       : Math.max(0, Number(e.target.value)),
                 }))
               }
@@ -621,12 +621,14 @@ function ContentRow({
           <input
             type="number"
             className="rounded-lg border px-2 py-1 w-24"
-            value={(f.position as number) ?? ""}
+            value={f.position ?? ""}
             onChange={(e) =>
               setF((s) => ({
                 ...s,
                 position:
-                  e.target.value === "" ? "" : Math.max(0, Number(e.target.value)),
+                  e.target.value === ""
+                    ? undefined
+                    : Math.max(0, Number(e.target.value)),
               }))
             }
           />
@@ -695,7 +697,7 @@ function ContentRow({
             <button
               onClick={() => {
                 onSave({
-                  position: (f.position as number) ?? item.position,
+                  position: f.position ?? item.position,
                   rank: f.rank,
                   name: f.name,
                   pno: f.pno,

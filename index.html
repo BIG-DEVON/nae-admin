@@ -2,17 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Favicon: put NAE-logo.ico inside /public (so it’s served from /NAE-logo.ico) -->
-    <link rel="icon" href="/public/NAE-logo.ico" type="image/x-icon" />
-    <!-- (Optional) If you also have a PNG version, keep this too -->
-    <!-- <link rel="icon" type="image/png" href="/NAE-logo.png" /> -->
-    <!-- (Optional) iOS home screen icon -->
-    <!-- <link rel="apple-touch-icon" href="/NAE-logo.png" /> -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NAE Hall of Fame Admin</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#15803D" />
+
+    <!-- Favicon (Vite serves files from /public at site root) -->
+    <link rel="icon" href="/NAE-logo.ico" type="image/x-icon" sizes="any" />
+    <!-- (Optional) If you also have a PNG logo, uncomment:
+    <link rel="icon" type="image/png" href="/NAE-logo.png" />
+    <link rel="apple-touch-icon" href="/NAE-logo.png" />
+    -->
+
+    <title>NAE Hall of Fame — Admin</title>
+
+    <!-- Tiny inline baseline so layout doesn't "jump" before app CSS loads -->
+    <style>
+      /* prevent initial browser margins and font flashes */
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: #fafafa;       /* subtle neutral */
+        color: #0a0a0a;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-family: Manrope, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      }
+      #root { min-height: 100%; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <!-- Your app loads Tailwind + the full theme via /src/styles/tailwind.css -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
