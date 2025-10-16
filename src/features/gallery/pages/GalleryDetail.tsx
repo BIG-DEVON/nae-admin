@@ -1,24 +1,63 @@
 // src/features/gallery/pages/GalleryDetail.tsx
 import { Link, useSearchParams } from "react-router-dom";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useGalleryContents } from "../hooks/useGalleryContents";
 import { useGalleryMutations } from "../hooks/useGalleryMutations";
 import type { ID } from "../types";
 import { notifySuccess, notifyError, extractErrorMessage } from "@/lib/notify";
+import SmartImage from "@/components/ui/SmartImage";
 
+/* --------------------------------- types --------------------------------- */
 type ContentRow = {
   id: ID;
   gallery_id: ID;
   title: string;
   position: number;
-  image_url?: string;
+  image_url?: string | null;
+  image?: string | null;
+  path?: string | null;
 };
+
+/* ------------------------------ helpers ---------------------------------- */
+
+// Normalize anything to an array
+function toArray<T = unknown>(input: unknown): T[] {
+  if (Array.isArray(input)) return input as T[];
+  if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    for (const k of ["data", "results", "items"]) {
+      const v = obj[k];
+      if (Array.isArray(v)) return v as T[];
+    }
+  }
+  return [];
+}
+
+// Build a safe absolute url for images
+const RAW_BASE =
+  (import.meta.env.VITE_ASSET_BASE as string | undefined) ??
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  "";
+
+const ASSET_BASE = RAW_BASE.replace(/\/+$/, "");
+
+function resolveImageUrl(raw?: string | null): string | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  const v = raw.trim();
+  if (!v) return undefined;
+  if (/^(https?:)?\/\//i.test(v) || /^data:image\//i.test(v)) return v;
+  if (v.startsWith("/")) return `${ASSET_BASE}${v}`;
+  return ASSET_BASE ? `${ASSET_BASE}/${v}` : v;
+}
+
+/* ------------------------------ component -------------------------------- */
 
 export default function GalleryDetail() {
   const [sp] = useSearchParams();
   const galleryId = sp.get("id");
 
-  const { data, isLoading, isError, isFetching, refetch } = useGalleryContents(galleryId);
+  const { data, isLoading, isError, isFetching, refetch } =
+    useGalleryContents(galleryId);
 
   const {
     createGalleryContent: createMut,
@@ -27,50 +66,88 @@ export default function GalleryDetail() {
     deleteGalleryContent: delMut,
   } = useGalleryMutations();
 
-  // ---------- Create form ----------
-  const [title, setTitle] = useState("");
-  const [position, setPosition] = useState<number | "">("");
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  // UI: search / sort
+  const [q, setQ] = useState("");
+  const [asc, setAsc] = useState(true);
+
+  // Lightbox
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  // Multi-upload state
+  const pickerRef = useRef<HTMLInputElement | null>(null);
+  const [isDropping, setIsDropping] = useState(false);
 
   const rows = useMemo<ContentRow[]>(
-    () => (Array.isArray(data) ? (data as ContentRow[]) : []),
+    () => toArray<ContentRow>(data),
     [data]
   );
 
+  // Derived last position
+  const lastPos = rows.length ? Math.max(...rows.map((r) => r.position)) : 0;
+
+  // Filter/sort
+  const visible = useMemo(() => {
+    const text = q.trim().toLowerCase();
+    let list = rows;
+    if (text) {
+      list = rows.filter((r) => r.title?.toLowerCase().includes(text));
+    }
+    list = [...list].sort((a, b) =>
+      asc ? a.position - b.position : b.position - a.position
+    );
+    return list;
+  }, [rows, q, asc]);
+
+  // Guard
   if (!galleryId) {
     return (
       <div className="p-6 space-y-4">
-        <p className="text-red-600">Missing required query param: <code>id</code></p>
-        <Link to="/gallery" className="inline-flex rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50">
+        <p className="text-red-600">
+          Missing required query param: <code>id</code>
+        </p>
+        <Link
+          to="/gallery"
+          className="inline-flex rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+        >
           ← Back to Galleries
         </Link>
       </div>
     );
   }
 
-  // ---------- Handlers ----------
-  const onCreate = async () => {
-    const t = title.trim();
-    const p = Number(position || 0);
-    const file = fileRef.current?.files?.[0];
+  /* ---------------------------- actions ---------------------------------- */
 
-    if (!t) return notifyError("Title is required.");
-    if (!file) return notifyError("Please choose an image.");
-
+  const createOne = async (file: File, opts: { title?: string; position?: number }) => {
     try {
       await createMut.mutateAsync({
         gallery_id: galleryId as ID,
         image: file,
-        title: t,
-        position: p,
+        title: opts.title ?? file.name.replace(/\.[^.]+$/, "").slice(0, 120),
+        position: Number(opts.position ?? 0),
       });
-      notifySuccess("Content created.");
-      setTitle("");
-      setPosition("");
-      if (fileRef.current) fileRef.current.value = "";
-      refetch();
     } catch (err) {
-      notifyError("Failed to create", extractErrorMessage(err, "Could not create content."));
+      notifyError("Failed to create item", extractErrorMessage(err));
+      throw err;
+    }
+  };
+
+  const onCreateBatch = async (files: FileList | File[]) => {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (!arr.length) {
+      notifyError("Please select one or more images.");
+      return;
+    }
+    // Sequential creates to keep order stable
+    let pos = lastPos;
+    try {
+      for (const f of arr) {
+        pos += 1;
+        await createOne(f, { position: pos });
+      }
+      notifySuccess(`${arr.length} item(s) added`);
+      refetch();
+    } catch {
+      // errors already toasted
     }
   };
 
@@ -85,7 +162,10 @@ export default function GalleryDetail() {
       notifySuccess("Content updated.");
       refetch();
     } catch (err) {
-      notifyError("Failed to update", extractErrorMessage(err, "Could not update content."));
+      notifyError(
+        "Failed to update content",
+        extractErrorMessage(err, "Could not update content.")
+      );
     }
   };
 
@@ -96,7 +176,10 @@ export default function GalleryDetail() {
       notifySuccess("Image updated.");
       refetch();
     } catch (err) {
-      notifyError("Failed to update image", extractErrorMessage(err, "Could not update image."));
+      notifyError(
+        "Failed to update image",
+        extractErrorMessage(err, "Could not update image.")
+      );
     }
   };
 
@@ -107,14 +190,52 @@ export default function GalleryDetail() {
       notifySuccess("Content deleted.");
       refetch();
     } catch (err) {
-      notifyError("Failed to delete", extractErrorMessage(err, "Could not delete content."));
+      notifyError(
+        "Failed to delete content",
+        extractErrorMessage(err, "Could not delete content.")
+      );
     }
   };
+
+  // Drag reorder (swap positions)
+  const [dragging, setDragging] = useState<ID | null>(null);
+  const onDragStart = (id: ID) => setDragging(id);
+  const onDragEnd = () => setDragging(null);
+
+  const swapPositions = async (a: ContentRow, b: ContentRow) => {
+    if (!a || !b || a.id === b.id) return;
+    try {
+      // Optimistic UI could be added; for now do two updates
+      await Promise.all([
+        editMut.mutateAsync({
+          content_id: a.id,
+          gallery_id: a.gallery_id,
+          position: b.position,
+        }),
+        editMut.mutateAsync({
+          content_id: b.id,
+          gallery_id: b.gallery_id,
+          position: a.position,
+        }),
+      ]);
+      notifySuccess("Items reordered");
+      refetch();
+    } catch (err) {
+      notifyError("Reorder failed", extractErrorMessage(err));
+    }
+  };
+
+  const findRow = useCallback(
+    (id: ID) => rows.find((r) => String(r.id) === String(id)),
+    [rows]
+  );
+
+  /* ------------------------------- UI ------------------------------------ */
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
             to="/gallery"
@@ -124,175 +245,284 @@ export default function GalleryDetail() {
           </Link>
           <h1 className="text-xl font-semibold">Gallery Contents</h1>
         </div>
-        <div className="text-sm text-neutral-500">
-          Gallery ID: <span className="font-medium">{galleryId}</span>
-          {isFetching && <span className="ml-3">Refreshing…</span>}
+        <div className="flex items-center gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by title…"
+            className="rounded-full border px-3 py-1.5 text-sm w-56"
+          />
+          <button
+            onClick={() => setAsc((s) => !s)}
+            className="rounded-full border px-3 py-1.5 text-sm hover:bg-emerald-50"
+            title="Toggle sort by position"
+          >
+            Sort: {asc ? "Asc" : "Desc"}
+          </button>
+          <button
+            onClick={() => refetch()}
+            className="rounded-full border px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
+            Refresh
+          </button>
+          <span className="text-xs text-neutral-500">
+            Gallery ID: <b>{galleryId}</b>
+            {isFetching && <span className="ml-2">Refreshing…</span>}
+          </span>
         </div>
       </header>
 
-      {/* Create */}
-      <section className="rounded-xl border p-4 space-y-3">
-        <div className="text-sm font-medium">Create content</div>
-        <div className="grid gap-3 md:grid-cols-4">
-          <input
-            className="rounded-lg border px-3 py-2 text-sm"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            aria-label="Content title"
-          />
-          <input
-            className="rounded-lg border px-3 py-2 text-sm"
-            placeholder="Position"
-            type="number"
-            value={position}
-            onChange={(e) => setPosition(e.target.value === "" ? "" : Number(e.target.value))}
-            aria-label="Content position"
-          />
-          <input
-            ref={fileRef}
-            className="rounded-lg border px-3 py-2 text-sm"
-            type="file"
-            accept="image/*"
-            aria-label="Content image"
-          />
-          <button
-            onClick={onCreate}
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-60"
-            disabled={createMut.isPending}
-          >
-            {createMut.isPending ? "Creating…" : "Create"}
-          </button>
+      {/* Uploader (multi) */}
+      <section
+        className={[
+          "rounded-2xl border bg-white p-4 shadow-sm transition",
+          isDropping ? "ring-2 ring-emerald-400/60" : "",
+        ].join(" ")}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDropping(true);
+        }}
+        onDragLeave={() => setIsDropping(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDropping(false);
+          if (e.dataTransfer?.files?.length) {
+            onCreateBatch(e.dataTransfer.files);
+          }
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">Add images</div>
+            <p className="text-xs text-neutral-600">
+              Drag & drop or use the picker. We’ll set the title from filename and position after{" "}
+              {lastPos}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={pickerRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) onCreateBatch(e.target.files);
+                if (pickerRef.current) pickerRef.current.value = "";
+              }}
+            />
+            <button
+              onClick={() => pickerRef.current?.click()}
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+            >
+              Choose files…
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* List */}
-      <section className="rounded-xl border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50">
-            <tr className="[&>th]:px-3 [&>th]:py-2 text-left">
-              <th>ID</th>
-              <th>Preview</th>
-              <th>Title</th>
-              <th>Position</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-3 py-3 text-neutral-500" colSpan={5}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td className="px-3 py-3 text-red-600" colSpan={5}>
-                  Failed to load.
-                </td>
-              </tr>
-            )}
-            {!isLoading && !isError && rows.length === 0 && (
-              <tr>
-                <td className="px-3 py-6 text-center text-neutral-500" colSpan={5}>
-                  No contents yet.
-                </td>
-              </tr>
-            )}
-
-            {rows.map((c) => (
-              <ContentRow
+      {/* Grid */}
+      <section className="min-h-[160px]">
+        {isLoading ? (
+          <div className="rounded-2xl border p-6 shadow-sm text-sm text-neutral-600">
+            Loading…
+          </div>
+        ) : isError ? (
+          <div className="rounded-2xl border p-6 shadow-sm text-sm text-red-600">
+            Failed to load.
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="rounded-2xl border p-6 shadow-sm text-sm text-neutral-500">
+            No contents yet.
+          </div>
+        ) : (
+          <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visible.map((c) => (
+              <li
                 key={String(c.id)}
-                item={c}
-                onEdit={(patch) =>
-                  onEdit({ content_id: c.id, gallery_id: c.gallery_id, ...patch })
-                }
-                onEditImage={(file) => onEditImage(c.id, file)}
-                onDelete={() => onDelete(c.id)}
-              />
+                draggable
+                onDragStart={() => onDragStart(c.id)}
+                onDragEnd={onDragEnd}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  // allow drop
+                }}
+                onDrop={() => {
+                  if (dragging == null) return;
+                  const a = findRow(dragging);
+                  const b = findRow(c.id);
+                  if (a && b) swapPositions(a, b);
+                }}
+              >
+                <Card
+                  item={c}
+                  onOpen={(src) => setLightbox(src ?? null)}
+                  onEdit={(patch) =>
+                    onEdit({ content_id: c.id, gallery_id: c.gallery_id, ...patch })
+                  }
+                  onEditImage={(file) => onEditImage(c.id, file)}
+                  onDelete={() => onDelete(c.id)}
+                  dragging={dragging != null}
+                  isDragging={String(dragging) === String(c.id)}
+                />
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        )}
       </section>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <dialog
+          open
+          className="backdrop:bg-black/60 rounded-xl p-0 w-[min(96vw,1000px)]"
+          onClose={() => setLightbox(null)}
+        >
+          <div className="relative">
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute right-3 top-3 z-10 rounded-md bg-white/90 px-2 py-1 text-xs border hover:bg-emerald-50"
+              aria-label="Close preview"
+            >
+              Close
+            </button>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <img
+              src={lightbox}
+              className="max-h-[82vh] w-auto object-contain rounded-xl"
+              loading="eager"
+            />
+          </div>
+        </dialog>
+      )}
     </div>
   );
 }
 
-function ContentRow({
+/* ------------------------------ Card item --------------------------------- */
+
+function Card({
   item,
+  onOpen,
   onEdit,
   onEditImage,
   onDelete,
+  dragging,
+  isDragging,
 }: {
   item: ContentRow;
+  onOpen: (src?: string) => void;
   onEdit: (patch: { title?: string; position?: number }) => void;
   onEditImage: (file: File | null | undefined) => void;
   onDelete: () => void;
+  dragging: boolean;
+  isDragging: boolean;
 }) {
   const [title, setTitle] = useState(item.title);
-  const [position, setPosition] = useState<number | "">(item.position ?? "");
+  const [pos, setPos] = useState<number | "">(item.position);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTitle(item.title);
+    setPos(item.position);
+  }, [item.id, item.title, item.position]);
+
+  const raw = item.image_url ?? (item as any).image ?? (item as any).path;
+  const imgUrl = localPreview || resolveImageUrl(raw);
 
   return (
-    <tr className="[&>td]:px-3 [&>td]:py-2 border-t align-top">
-      <td className="whitespace-nowrap">{String(item.id)}</td>
-
-      <td>
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt=""
-            className="h-14 w-14 object-cover rounded-md border bg-white"
-          />
-        ) : (
-          <span className="text-neutral-500">No image</span>
-        )}
-      </td>
-
-      <td className="w-56">
-        <input
-          className="rounded-lg border px-2 py-1 text-sm w-full"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </td>
-
-      <td className="w-28">
-        <input
-          className="rounded-lg border px-2 py-1 text-sm w-24"
-          type="number"
-          value={position}
-          onChange={(e) =>
-            setPosition(e.target.value === "" ? "" : Number(e.target.value))
+    <div
+      className={[
+        "rounded-2xl border bg-white p-3 shadow-sm transition",
+        dragging ? "cursor-grabbing" : "cursor-grab",
+        isDragging ? "opacity-70 ring-2 ring-emerald-400/60" : "",
+      ].join(" ")}
+      title={`ID ${item.id} • Drag to reorder`}
+    >
+      {/* preview */}
+      <button
+        type="button"
+        onClick={() => imgUrl && onOpen(imgUrl)}
+        className="group relative block"
+      >
+        <SmartImage
+          src={imgUrl}
+          alt={item.title}
+          className="h-40 w-full"
+          imgClassName="object-cover"
+          cacheBust
+          maxRetries={1}
+          fallback={
+            <div className="flex h-40 w-full items-center justify-center rounded-md border bg-neutral-50 text-xs text-neutral-400">
+              No cover
+            </div>
           }
         />
-      </td>
+        <span className="pointer-events-none absolute inset-0 rounded-md ring-0 ring-emerald-500/0 group-hover:ring-4 group-hover:ring-emerald-400/30 transition" />
+      </button>
 
-      <td className="text-right whitespace-nowrap space-x-2">
+      {/* fields */}
+      <div className="mt-3 space-y-2">
+        <input
+          className="w-full rounded-lg border px-2 py-1 text-sm"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-600">Position</span>
+          <input
+            className="w-24 rounded-lg border px-2 py-1 text-sm"
+            type="number"
+            value={pos}
+            onChange={(e) =>
+              setPos(e.target.value === "" ? "" : Number(e.target.value))
+            }
+          />
+        </div>
+      </div>
+
+      {/* actions */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
-          onClick={() => onEdit({ title: title.trim(), position: Number(position || 0) })}
-          className="rounded-lg border px-2 py-1 hover:bg-neutral-50"
+          onClick={() =>
+            onEdit({ title: title.trim(), position: Number(pos || 0) })
+          }
+          className="rounded-lg border px-2 py-1 text-xs hover:bg-emerald-50"
         >
           Save
         </button>
 
-        <label className="rounded-lg border px-2 py-1 hover:bg-neutral-50 cursor-pointer">
+        <label className="rounded-lg border px-2 py-1 text-xs hover:bg-neutral-50 cursor-pointer">
           <input
             className="hidden"
             type="file"
             accept="image/*"
-            onChange={(e) => onEditImage(e.target.files?.[0])}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) {
+                const url = URL.createObjectURL(f);
+                setLocalPreview(url);
+                onEditImage(f);
+                // revoke later to avoid flicker
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+              }
+            }}
           />
           Change image
         </label>
 
         <button
           onClick={onDelete}
-          className="rounded-lg border px-2 py-1 hover:bg-red-50 text-red-600"
+          className="rounded-lg border px-2 py-1 text-xs hover:bg-red-50 text-red-600"
         >
           Delete
         </button>
-      </td>
-    </tr>
+
+        <span className="ml-auto text-[11px] text-neutral-500">
+          ID {String(item.id)}
+        </span>
+      </div>
+    </div>
   );
 }
