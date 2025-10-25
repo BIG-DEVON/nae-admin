@@ -659,3 +659,4 @@ function CommanderCard({
     </div>
   );
 }
+ 

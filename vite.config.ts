@@ -11,9 +11,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://nae.grup.com.ng',
+        target: 'http://192.168.0.112',
         changeOrigin: true,
-        secure: true,
+        secure: false,
         rewrite: (p) => p.replace(/^\/api/, ''), // ⬅️ add this line
       },
     },
