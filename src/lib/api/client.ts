@@ -1,13 +1,19 @@
+// src/lib/client.ts
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") || "";
-const getToken = () => (import.meta.env.VITE_API_TOKEN || localStorage.getItem("token") || "").trim();
+const RAW_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim();
+// strip trailing slashes just in case
+const BASE_URL = RAW_BASE.replace(/\/+$/, "");
+
+// Prefer token from env for staging/demo, else localStorage
+const getToken = () =>
+  (import.meta.env.VITE_API_TOKEN || localStorage.getItem("token") || "").trim();
 
 type RequestOptions = {
   method?: HttpMethod;
-  path: string;                  // e.g. "/gallery/"
+  path: string; // e.g. "/gallery/" or "gallery/"
   query?: Record<string, string | number | boolean | undefined | null>;
-  body?: unknown;                    // JSON object or FormData
+  body?: unknown; // JSON object or FormData
   signal?: AbortSignal;
   auth?: "always" | "ifAvailable" | "none";
 };
@@ -22,20 +28,25 @@ function toQueryString(query?: RequestOptions["query"]) {
   return s ? `?${s}` : "";
 }
 
+// Normalize to ensure we always call `${BASE_URL}/...`
+function normalizePath(p: string) {
+  if (!p) return "/";
+  return p.startsWith("/") ? p : `/${p}`;
+}
+
 export async function http<T = unknown>(opts: RequestOptions): Promise<T> {
   const { method = "GET", path, query, body, signal, auth = "ifAvailable" } = opts;
 
   const qs = toQueryString(query);
-  const url = `${BASE_URL}${path}${qs}`;
+  const url = `${BASE_URL}${normalizePath(path)}${qs}`;
 
   const headers = new Headers();
-  // Only set JSON headers if body is NOT FormData
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+
   if (!isForm && method !== "GET" && method !== "DELETE") {
     headers.set("Content-Type", "application/json");
   }
 
-  // Attach token
   const token = getToken();
   const shouldAttachAuth =
     auth === "always" || (auth === "ifAvailable" && token.length > 0);
@@ -45,8 +56,7 @@ export async function http<T = unknown>(opts: RequestOptions): Promise<T> {
     method,
     headers,
     signal,
-    body: isForm ? body : body ? JSON.stringify(body) : undefined,
-    // credentials: "include", // enable if server uses cookies
+    body: isForm ? (body as FormData) : body ? JSON.stringify(body) : undefined,
   });
 
   const contentType = res.headers.get("content-type") || "";
