@@ -10,13 +10,11 @@ RUN npm ci --include=dev || npm install
 # Copy the rest
 COPY . .
 
-# Env is read at build-time by Vite. Your .env.production already has:
-# VITE_API_BASE_URL=https://server.nasmehalloffame.com.ng
-# But we also allow an override via build-arg if you ever need it.
+# Allow override of API base at build time if ever needed (optional)
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-# Build the app
+# Build the app (reads .env.production at build time)
 RUN npm run build
 
 
@@ -25,17 +23,20 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Minimal static server
-RUN npm i -g serve
+RUN npm i -g serve@14.2.3
 
 # Copy build output
 COPY --from=build /app/dist ./dist
 
 ENV NODE_ENV=production
-EXPOSE 8080
 
-# Optional healthcheck (tries to hit the root)
+# Default to 5173 (Coolify can override by setting PORT)
+ENV PORT=5173
+EXPOSE 5173
+
+# Healthcheck honors $PORT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1
+  CMD sh -c "wget -qO- http://127.0.0.1:${PORT:-5173}/ >/dev/null 2>&1 || exit 1"
 
-# Serve the built SPA
-CMD ["serve", "-s", "dist", "-l", "8080"]
+# Serve the built SPA; bind to 0.0.0.0 and honor $PORT
+CMD ["sh", "-c", "serve -s dist -l tcp://0.0.0.0:${PORT:-5173}"]
