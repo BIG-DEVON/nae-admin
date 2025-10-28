@@ -1,6 +1,20 @@
+# Dependencies & build output
 node_modules
 dist
+
+# VCS & tooling
 .git
+.gitignore
+.husky
 .vscode
+.eslintcache
+*.log
+
+# Env files (we bake .env.production at build-time, no need to send all)
 .env
 .env.*
+!.env.production
+
+# OS cruft
+.DS_Store
+Thumbs.db

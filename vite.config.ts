@@ -1,44 +1,31 @@
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-
-  // So other devices on the LAN can reach dev server (and proxy)
+  // Dev server (we'll proxy /api to your live server)
   server: {
-    host: true,          // listen on 0.0.0.0
-    port: 5173,          // change if you already use this port
-    proxy: {
-      // We only proxy in DEV. In PROD we hit the full URL directly from env.
-      "/api": {
-        target: "http://192.168.0.112:9000",
-        changeOrigin: true,
-        secure: false,
-        rewrite: (p) => p.replace(/^\/api/, ""),
-      },
-    },
-  },
-
-  // Make `vite preview` behave like dev when you test the build locally
-  preview: {
     host: true,
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://192.168.0.112:9000",
+      '/api': {
+        target: 'https://server.nasmehalloffame.com.ng', // ✅ your live base
         changeOrigin: true,
-        secure: false,
-        rewrite: (p) => p.replace(/^\/api/, ""),
+        // Keep this rewrite ONLY if your backend routes are at root (e.g. GET /gallery)
+        // and you use "/api/..." on the frontend.
+        rewrite: (p) => p.replace(/^\/api/, ''),
+        // Leave TLS verification ON for a real cert (default is true)
+        // secure: true,
       },
     },
   },
-
-  // No special base; Coolify will serve at /
-  base: "/",
+  preview: {
+    host: true,
+    port: 4173,
+  },
 });
