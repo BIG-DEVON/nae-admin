@@ -1,80 +1,81 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+// src/features/gallery/hooks/useGalleryHome.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getHomeGallery,
   createHomeGallery,
   updateHomeGallery,
   editHomeGalleryImage,
   deleteHomeGallery,
-} from '../api';
+} from "../api";
 import type {
   CreateHomeGalleryInput,
   UpdateHomeGalleryInput,
   EditHomeGalleryImageInput,
   ID,
   HomeGallery,
-} from '../types';
-import { logActivity } from '@/lib/activity/log';
+} from "../types";
+import { logActivity } from "@/lib/activity/log";
 
-// Stable query key for the home gallery list
-const QK = ['gallery', 'home'] as const;
+const QK = ["gallery", "home"] as const;
 
 export function useGalleryHome() {
   const qc = useQueryClient();
 
-  // ---- READ ----
+  // READ
   const list = useQuery<HomeGallery[]>({
     queryKey: QK,
     queryFn: getHomeGallery,
     staleTime: 60_000,
+    retry: false,
   });
 
-  // ---- CREATE ----
+  // CREATE
   const create = useMutation({
     mutationFn: (input: CreateHomeGalleryInput) => createHomeGallery(input),
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: QK });
       logActivity({
-        area: 'Gallery',
-        action: 'create',
+        area: "Gallery",
+        action: "create",
         message: `Banner “${v.title || v.name}” created`,
       });
     },
   });
 
-  // ---- UPDATE (text fields/position) ----
+  // UPDATE (fields/position)
   const update = useMutation({
     mutationFn: (input: UpdateHomeGalleryInput) => updateHomeGallery(input),
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: QK });
       logActivity({
-        area: 'Gallery',
-        action: 'update',
+        area: "Gallery",
+        action: "update",
         message: `Banner #${v.id} updated`,
       });
     },
   });
 
-  // ---- UPDATE IMAGE ----
+  // UPDATE image
   const updateImage = useMutation({
     mutationFn: (input: EditHomeGalleryImageInput) => editHomeGalleryImage(input),
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: QK });
       logActivity({
-        area: 'Gallery',
-        action: 'upload',
+        area: "Gallery",
+        action: "upload",
         message: `Banner #${v.id} image changed`,
       });
     },
   });
 
-  // ---- DELETE ----
+  // DELETE
   const remove = useMutation({
     mutationFn: (id: ID) => deleteHomeGallery(id),
     onSuccess: (_r, id) => {
       qc.invalidateQueries({ queryKey: QK });
       logActivity({
-        area: 'Gallery',
-        action: 'delete',
+        area: "Gallery",
+        action: "delete",
         message: `Banner #${id} deleted`,
       });
     },

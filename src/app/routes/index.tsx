@@ -1,10 +1,9 @@
 // src/app/routes/index.tsx
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import RequireAuth from '@/app/routes/RequireAuth';
+import RequireAuth, { RedirectIfAuthed } from '@/app/routes/RequireAuth';
 import { Shell as AppLayout } from '@/components/layout/Shell';
-import { useAuthStore } from '@/lib/store/auth.store';
 
 // Lazy pages
 const Login       = lazy(() => import('@/features/auth/pages/Login'));
@@ -28,22 +27,9 @@ const SapperChroniclesContents  = lazy(() => import('@/features/formations/pages
 const OverviewHistory    = lazy(() => import('@/features/overview/pages/History'));
 const OverviewOrganogram = lazy(() => import('@/features/overview/pages/Organogram'));
 const OverviewCommanders = lazy(() => import('@/features/overview/pages/Commanders'));
-// ✅ New: Overview Chronicles page
 const OverviewChronicles = lazy(() => import('@/features/overview/pages/Chronicles'));
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
-
-/** If the user is already authed, keep them out of /login and bounce back */
-function RedirectIfAuthed() {
-  const { user } = useAuthStore();
-  const loc = useLocation() as { state?: { from?: { pathname?: string } } } | null;
-
-  if (user) {
-    const to = loc?.state?.from?.pathname || '/';
-    return <Navigate to={to} replace />;
-  }
-  return <Login />;
-}
 
 export default function AppRouter() {
   return (
@@ -51,7 +37,9 @@ export default function AppRouter() {
       <Suspense fallback={<div className="p-6">Loading…</div>}>
         <Routes>
           {/* Public (but redirect if already signed in) */}
-          <Route path="/login" element={<RedirectIfAuthed />} />
+          <Route path="/login" element={<RedirectIfAuthed />}>
+            <Route index element={<Login />} />
+          </Route>
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
@@ -68,7 +56,7 @@ export default function AppRouter() {
               <Route path="awards/sections" element={<AwardSections />} />
               <Route path="awards/contents" element={<AwardContents />} />
 
-              {/* Formations (redirect + pages) */}
+              {/* Formations */}
               <Route path="formations" element={<Navigate to="/formations/chronicles" replace />} />
               <Route path="formations/chronicles" element={<FormChronicles />} />
               <Route path="formations/sections" element={<FormChronicleSections />} />
@@ -84,7 +72,6 @@ export default function AppRouter() {
               <Route path="overview/history" element={<OverviewHistory />} />
               <Route path="overview/organogram" element={<OverviewOrganogram />} />
               <Route path="overview/commanders" element={<OverviewCommanders />} />
-              {/* ✅ New route */}
               <Route path="overview/chronicles" element={<OverviewChronicles />} />
             </Route>
           </Route>

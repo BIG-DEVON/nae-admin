@@ -1,5 +1,5 @@
 // src/app/routes/RequireAuth.tsx
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { ROUTES } from "./paths";
@@ -7,21 +7,40 @@ import { ROUTES } from "./paths";
 /**
  * Protects nested routes.
  * - Rehydrates auth state once (from localStorage via store.hydrate()).
- * - While checking, shows a tiny placeholder to avoid a redirect flash.
+ * - Subscribes to the global "app:unauthorized" event dispatched by the http client.
  * - If not authed, sends to /login and remembers where we came from.
  */
 export default function RequireAuth() {
-  const { user, hydrate } = useAuthStore();
+  const { user, hydrate, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
 
+  // 1) Rehydrate on mount
   useEffect(() => {
-    // If hydrate is synchronous (common in Zustand), this is enough.
-    // If you later make it async, you can await it then setChecking(false).
     hydrate();
     setChecking(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 2) Listen for global unauthorized events from the fetch client
+  useEffect(() => {
+    const onUnauthorized = () => {
+      // clear session and push to login with return path
+      logout();
+      navigate(ROUTES.login, {
+        replace: true,
+        state: { from: location },
+      });
+    };
+
+    // CustomEvent<string> from src/lib/api/client.ts (dispatchUnauthorized)
+    window.addEventListener("app:unauthorized", onUnauthorized as EventListener);
+
+    return () => {
+      window.removeEventListener("app:unauthorized", onUnauthorized as EventListener);
+    };
+  }, [logout, navigate, location]);
 
   if (checking) {
     return <div className="p-6 text-sm text-neutral-500">Loading…</div>;
@@ -41,8 +60,8 @@ export default function RequireAuth() {
 }
 
 /**
- * Optional guard for your login route:
- * If already signed in, bounce away from /login to home (or wherever).
+ * Optional guard for your /login route:
+ * If already signed in, bounce away from /login to the previous or home.
  */
 export function RedirectIfAuthed() {
   const { user, hydrate } = useAuthStore();
@@ -60,8 +79,8 @@ export function RedirectIfAuthed() {
   }
 
   if (user) {
-    // FIX: ROUTES.home doesn't exist; use ROUTES.root
-    return <Navigate to={ROUTES.root} replace state={{ from: location }} />;
+    const to = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || ROUTES.root;
+    return <Navigate to={to} replace />;
   }
 
   return <Outlet />;

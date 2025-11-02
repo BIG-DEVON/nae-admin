@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { qk } from '@/lib/api/queryKeys';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/api/queryKeys";
 import {
   // History
   getHistory, createHistory, updateHistory,
@@ -12,7 +12,10 @@ import {
   // Admin Chronicles
   createOverviewChronicles, updateOverviewChronicles, deleteOverviewChronicles,
   createOverviewChroniclesContent, updateOverviewChroniclesContent, deleteOverviewChroniclesContent
-} from '../api';
+} from "../api";
+
+// helper to turn off retries during bring-up
+const NO_RETRY = false;
 
 // ---------- History ----------
 export function useOverviewHistory() {
@@ -22,6 +25,7 @@ export function useOverviewHistory() {
     queryKey: qk.overview.history(),
     queryFn: getHistory,
     staleTime: 60_000,
+    retry: NO_RETRY,
   });
 
   const create = useMutation({
@@ -45,6 +49,7 @@ export function useOverviewOrganogram() {
     queryKey: qk.overview.organogram(),
     queryFn: getOrganogram,
     staleTime: 60_000,
+    retry: NO_RETRY,
   });
 
   const create = useMutation({
@@ -78,6 +83,7 @@ export function useOverviewCommanders() {
     queryKey: qk.overview.commanders(),
     queryFn: getCommanders,
     staleTime: 60_000,
+    retry: NO_RETRY,
   });
 
   const create = useMutation({
@@ -103,22 +109,26 @@ export function useOverviewCommanders() {
   return { query, create, update, updateImage, remove };
 }
 
-// ---------- Overview Chronicles (optional, if you’ll use them) ----------
+// ---------- Overview Chronicles ----------
 export function useOverviewChroniclesList() {
   return useQuery({
     queryKey: qk.overview.chronicles(),
     queryFn: getOverviewChronicles,
     staleTime: 60_000,
+    retry: NO_RETRY,
   });
 }
+
 export function useOverviewChroniclesContents(sectionId: number | string | null) {
   return useQuery({
     queryKey: qk.overview.chroniclesContents(Number(sectionId ?? NaN)),
     queryFn: () => getOverviewChroniclesContents(sectionId!),
     enabled: !!sectionId,
     staleTime: 60_000,
+    retry: NO_RETRY,
   });
 }
+
 export function useOverviewChroniclesMutations() {
   const qc = useQueryClient();
   return {

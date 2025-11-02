@@ -23,7 +23,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Minimal static server
-RUN npm i -g serve@14.2.3
+RUN npm i -g serve@14.2.3 
 
 # Copy build output
 COPY --from=build /app/dist ./dist

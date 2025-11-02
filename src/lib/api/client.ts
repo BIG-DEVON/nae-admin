@@ -1,13 +1,16 @@
-// src/lib/client.ts
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 const RAW_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim();
-// strip trailing slashes just in case
 const BASE_URL = RAW_BASE.replace(/\/+$/, "");
 
 // Prefer token from env for staging/demo, else localStorage
 const getToken = () =>
   (import.meta.env.VITE_API_TOKEN || localStorage.getItem("token") || "").trim();
+
+function normalizePath(p: string) {
+  if (!p) return "/";
+  return p.startsWith("/") ? p : `/${p}`;
+}
 
 type RequestOptions = {
   method?: HttpMethod;
@@ -28,10 +31,12 @@ function toQueryString(query?: RequestOptions["query"]) {
   return s ? `?${s}` : "";
 }
 
-// Normalize to ensure we always call `${BASE_URL}/...`
-function normalizePath(p: string) {
-  if (!p) return "/";
-  return p.startsWith("/") ? p : `/${p}`;
+// Fire a single global event that RequireAuth listens to
+function dispatchUnauthorized() {
+  try {
+    localStorage.removeItem("token");
+  } catch {}
+  window.dispatchEvent(new CustomEvent("app:unauthorized"));
 }
 
 export async function http<T = unknown>(opts: RequestOptions): Promise<T> {
@@ -48,9 +53,11 @@ export async function http<T = unknown>(opts: RequestOptions): Promise<T> {
   }
 
   const token = getToken();
-  const shouldAttachAuth =
-    auth === "always" || (auth === "ifAvailable" && token.length > 0);
-  if (shouldAttachAuth) headers.set("Authorization", `Bearer ${token}`);
+  const shouldAttachAuth = auth === "always" || (auth === "ifAvailable" && token.length > 0);
+  if (shouldAttachAuth) {
+    // ⬇️ Send the token directly (no "Bearer " prefix)
+    headers.set("Authorization", token);
+  }
 
   const res = await fetch(url, {
     method,
@@ -58,6 +65,21 @@ export async function http<T = unknown>(opts: RequestOptions): Promise<T> {
     signal,
     body: isForm ? (body as FormData) : body ? JSON.stringify(body) : undefined,
   });
+
+  // Handle auth failures centrally
+  if (res.status === 401 || res.status === 403 || res.status === 419) {
+    dispatchUnauthorized();
+    const contentType = res.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
+      ? await res.json().catch(() => ({}))
+      : await res.text().catch(() => "");
+    throw {
+      status: res.status,
+      statusText: res.statusText,
+      url,
+      payload,
+    };
+  }
 
   const contentType = res.headers.get("content-type") || "";
   const asJson = contentType.includes("application/json");

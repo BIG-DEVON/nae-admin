@@ -1,3 +1,5 @@
+// src/features/awards/hooks/useAwardContent.ts
+
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '@/lib/api/queryKeys';
 import { getAwardContents } from '../api';

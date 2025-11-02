@@ -1,6 +1,13 @@
+// src/lib/api/endpoints.ts
 // Centralized endpoint builders. No string literals scattered in hooks/components.
 
 export const endpoints = {
+  // --- Auth ---
+  auth: {
+    login: () => `/auth/login/`,
+    // NOTE: backend has no /auth/me, so we don't expose it to avoid misuse.
+  },
+
   // --- Gallery (public) ---
   gallery: {
     list: () => `/gallery/`,

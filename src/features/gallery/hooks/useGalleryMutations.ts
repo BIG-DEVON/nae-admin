@@ -24,7 +24,6 @@ import {
 } from "../api";
 import { logActivity } from "@/lib/activity/log";
 
-/** Variables for content edits */
 type EditGalleryContentVars = {
   content_id: ID;
   gallery_id: ID;
@@ -37,7 +36,7 @@ export function useGalleryMutations() {
   const qc = useQueryClient();
 
   return {
-    /* ----------------------- Galleries (albums) ----------------------- */
+    // --- Galleries (albums)
     createGallery: useMutation<Gallery, Error, { title: string; position: number }>({
       mutationFn: (vars) => createGallery(vars),
       onSuccess: (_r, v) => {
@@ -50,17 +49,19 @@ export function useGalleryMutations() {
       },
     }),
 
-    editGallery: useMutation<Gallery, Error, { gallery_id: ID; title?: string; position?: number }>({
-      mutationFn: (vars) => updateGallery(vars),
-      onSuccess: (_r, v) => {
-        qc.invalidateQueries({ queryKey: qk.gallery.list() });
-        logActivity({
-          area: "Gallery",
-          action: "update",
-          message: `Album #${v.gallery_id} updated`,
-        });
-      },
-    }),
+    editGallery: useMutation<Gallery, Error, { gallery_id: ID; title?: string; position?: number }>(
+      {
+        mutationFn: (vars) => updateGallery(vars),
+        onSuccess: (_r, v) => {
+          qc.invalidateQueries({ queryKey: qk.gallery.list() });
+          logActivity({
+            area: "Gallery",
+            action: "update",
+            message: `Album #${(v as any).gallery_id ?? ""} updated`,
+          });
+        },
+      }
+    ),
 
     deleteGallery: useMutation<{ success?: boolean }, Error, ID>({
       mutationFn: (gallery_id) => deleteGallery(gallery_id),
@@ -74,15 +75,17 @@ export function useGalleryMutations() {
       },
     }),
 
-    /* ----------------------- Gallery contents ------------------------ */
+    // --- Gallery contents
     createGalleryContent: useMutation<
-      unknown,
+      { gallery_id: ID; title: string; position: number },
       Error,
       { gallery_id: ID; image: File; title: string; position: number }
     >({
       mutationFn: (vars) => createGalleryContent(vars),
       onSuccess: (_r, v) => {
-        qc.invalidateQueries({ queryKey: qk.gallery.contents(Number(v.gallery_id)) });
+        qc.invalidateQueries({
+          queryKey: qk.gallery.contents(Number(v.gallery_id)),
+        });
         logActivity({
           area: "Gallery",
           action: "create",
@@ -94,11 +97,13 @@ export function useGalleryMutations() {
     editGalleryContent: useMutation<unknown, Error, EditGalleryContentVars>({
       mutationFn: (vars) => editGalleryContent(vars),
       onSuccess: (_r, v) => {
-        qc.invalidateQueries({ queryKey: qk.gallery.contents(Number(v.gallery_id)) });
+        qc.invalidateQueries({
+          queryKey: qk.gallery.contents(Number((v as any).gallery_id)),
+        });
         logActivity({
           area: "Gallery",
           action: "update",
-          message: `Content #${v.content_id} updated`,
+          message: `Content #${(v as any).content_id} updated`,
         });
       },
     }),
@@ -106,13 +111,16 @@ export function useGalleryMutations() {
     editGalleryContentImage: useMutation<unknown, Error, EditGalleryContentImageVars>({
       mutationFn: (vars) => editGalleryContentImage(vars),
       onSuccess: () => {
-        // we don’t know parent gallery id here; invalidate broad
+        // unknown parent; invalidate broad
         qc.invalidateQueries({ queryKey: qk.gallery.all });
-        logActivity({ area: "Gallery", action: "upload", message: `Content image changed` });
+        logActivity({
+          area: "Gallery",
+          action: "upload",
+          message: `Content image changed`,
+        });
       },
     }),
 
-    // ✅ Accept { content_id }, unwrap to ID for the API
     deleteGalleryContent: useMutation<{ success?: boolean }, Error, { content_id: ID }>({
       mutationFn: (vars) => apiDeleteGalleryContent(vars.content_id),
       onSuccess: (_r, vars) => {
@@ -125,7 +133,7 @@ export function useGalleryMutations() {
       },
     }),
 
-    /* ----------------------- Home gallery (banners) ------------------ */
+    // --- Home gallery (banners)
     createHomeGallery: useMutation<HomeGallery, Error, CreateHomeGalleryInput>({
       mutationFn: (vars) => createHomeGallery(vars),
       onSuccess: (_r, v) => {
