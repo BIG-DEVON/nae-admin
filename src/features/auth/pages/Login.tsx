@@ -70,7 +70,7 @@ export default function Login() {
               Admin Sign In
             </h1>
             <p className="mt-2 text-center text-sm text-neutral-600">
-              Use the credentials configured on the server
+              Type In The Username and Password For Admin
             </p>
           </div>
 
@@ -123,7 +123,7 @@ export default function Login() {
             </button>
 
             <p className="text-center text-xs text-neutral-500">
-              Your session is secured with a bearer token
+              
             </p>
           </form>
         </div>
