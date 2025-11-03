@@ -1,14 +1,19 @@
 /* eslint-disable react-refresh/only-export-components */
 
 // src/features/auth/hooks/useAuth.tsx
-import { createContext, useContext, useMemo, useEffect, type PropsWithChildren } from "react";
-import { useAuthStore } from "@/lib/store/auth.store";
-
-type User = { id: string; name: string } | null;
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useEffect,
+  type PropsWithChildren,
+} from "react";
+import { useAuthStore, type AuthUser } from "@/lib/store/auth.store";
+import type { LoginInput } from "@/features/auth/api";
 
 type AuthContextValue = {
-  user: User;
-  login: (name: string) => void;
+  user: AuthUser;                              // ← match store shape { username, name?, id? } | null
+  login: (input: LoginInput) => Promise<void>; // ← match store.login signature
   logout: () => void;
 };
 
@@ -23,16 +28,19 @@ export function useAuth() {
 export function AuthProviderWithState({ children }: PropsWithChildren) {
   const { user, login: loginStore, logout: logoutStore, hydrate } = useAuthStore();
 
-  // load user from localStorage on first mount
+  // Rehydrate from persisted store on mount
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  const value = useMemo<AuthContextValue>(() => ({
-    user,
-    login: (name: string) => loginStore({ id: "demo", name }),
-    logout: () => logoutStore()
-  }), [user, loginStore, logoutStore]);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      login: (input: LoginInput) => loginStore(input),
+      logout: () => logoutStore(),
+    }),
+    [user, loginStore, logoutStore]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
