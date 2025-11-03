@@ -20,13 +20,7 @@ function UserActions() {
           {/* <span className="text-sm text-neutral-600 truncate max-w-[200px]">
             Signed in as <strong className="text-neutral-800">{user.name}</strong>
           </span> */}
-          <button
-            onClick={onSignOut}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50"
-            aria-label="Sign out"
-          >
-            Sign out
-          </button>
+          
         </>
       ) : null}
     </div>
