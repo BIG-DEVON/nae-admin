@@ -1,6 +1,6 @@
 // Always return a plain { [header]: value } using the token *as-is*.
 // No "Bearer", no "Token" prefix — exactly what’s stored/provided.
-
+//
 const STORAGE_KEY = "token";
 
 function readToken(): string {
