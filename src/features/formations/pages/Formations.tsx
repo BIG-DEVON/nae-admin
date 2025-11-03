@@ -2,37 +2,43 @@
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/app/routes/paths";
 
+type Item = {
+  title: string;
+  desc: string;
+  to: string; // ← ensure Link receives a string (not a union that might include a function type)
+};
+
 export default function Formations() {
-  const items = [
+  const items: Item[] = [
     {
       title: "Chronicles",
       desc: "Create and manage Chronicles (top-level).",
-      to: ROUTES.formationsChronicles,
+      to: String(ROUTES.formationsChronicles),
     },
     {
       title: "Chronicle Sections",
       desc: "Sections that belong to a Chronicle (needs ?chronicles_id=...).",
-      to: ROUTES.formationsChronicleSections, // will expect a query param when you click from a Chronicle row
+      to: String(ROUTES.formationsChronicleSections),
     },
     {
       title: "Chronicle Contents",
       desc: "Entries in a Chronicle Section (needs ?section_id=...).",
-      to: ROUTES.formationsChronicleContents, // will expect a query param when you click from a Section row
+      to: String(ROUTES.formationsChronicleContents),
     },
     {
       title: "Sapper Generals",
       desc: "Manage Sapper Generals (text + image).",
-      to: ROUTES.formationsSapperGenerals,
+      to: String(ROUTES.formationsSapperGenerals),
     },
     {
       title: "Sapper Chronicles",
       desc: "Top-level Sapper Chronicles (with sub-contents).",
-      to: ROUTES.formationsSapperChronicles,
+      to: String(ROUTES.formationsSapperChronicles),
     },
     {
       title: "Sapper Chronicles Contents",
       desc: "Entries under a Sapper Chronicle (needs ?section_id=...).",
-      to: ROUTES.formationsSapperChroniclesContents,
+      to: String(ROUTES.formationsSapperChroniclesContents),
     },
   ];
 
