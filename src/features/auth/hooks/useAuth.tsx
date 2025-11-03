@@ -8,12 +8,13 @@ import {
   useEffect,
   type PropsWithChildren,
 } from "react";
-import { useAuthStore, type AuthUser } from "@/lib/store/auth.store";
+import { useAuthStore } from "@/lib/store/auth.store";
+import type { AuthUser } from "@/lib/store/auth.store";
 import type { LoginInput } from "@/features/auth/api";
 
 type AuthContextValue = {
-  user: AuthUser;                              // ← match store shape { username, name?, id? } | null
-  login: (input: LoginInput) => Promise<void>; // ← match store.login signature
+  user: AuthUser;
+  login: (input: LoginInput) => Promise<void>;
   logout: () => void;
 };
 
@@ -28,7 +29,7 @@ export function useAuth() {
 export function AuthProviderWithState({ children }: PropsWithChildren) {
   const { user, login: loginStore, logout: logoutStore, hydrate } = useAuthStore();
 
-  // Rehydrate from persisted store on mount
+  // Rehydrate once on mount
   useEffect(() => {
     hydrate();
   }, [hydrate]);
@@ -36,7 +37,7 @@ export function AuthProviderWithState({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      login: (input: LoginInput) => loginStore(input),
+      login: (input) => loginStore(input),
       logout: () => logoutStore(),
     }),
     [user, loginStore, logoutStore]

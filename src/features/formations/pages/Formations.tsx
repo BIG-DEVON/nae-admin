@@ -2,11 +2,7 @@
 import { Link } from "react-router-dom";
 import { ROUTES } from "@/app/routes/paths";
 
-type Item = {
-  title: string;
-  desc: string;
-  to: string; // ← ensure Link receives a string (not a union that might include a function type)
-};
+type Item = { title: string; desc: string; to: string };
 
 export default function Formations() {
   const items: Item[] = [
@@ -58,9 +54,7 @@ export default function Formations() {
           >
             <div className="text-base font-medium text-neutral-900">{it.title}</div>
             <div className="mt-1 text-sm text-neutral-600">{it.desc}</div>
-            <div className="mt-3 inline-flex text-sm font-medium text-brand-700">
-              Open →
-            </div>
+            <div className="mt-3 inline-flex text-sm font-medium text-brand-700">Open →</div>
           </Link>
         ))}
       </div>
