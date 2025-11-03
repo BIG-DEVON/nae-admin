@@ -18,7 +18,7 @@ function UserActions() {
       {user ? (
         <>
           {/* <span className="text-sm text-neutral-600 truncate max-w-[200px]">
-            Signed in as <strong className="text-neutral-800">{user.name}</strong>
+            Signed in as Nasme Admin <strong className="text-neutral-800">{user.name}</strong>
           </span> */}
           
         </>
