@@ -70,7 +70,7 @@ export default function Login() {
               Admin Sign In
             </h1>
             <p className="mt-2 text-center text-sm text-neutral-600">
-              Type In The Username and Password For Admin
+              Pleasse the Username And Password
             </p>
           </div>
 
